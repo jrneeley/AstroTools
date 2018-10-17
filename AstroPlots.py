@@ -6,7 +6,7 @@ from scipy.stats import gaussian_kde
 
 def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     ylabel='mag', cbar_max=None, cbar_min=None, cbar_scale='linear', \
-    cmap=plt.cm.viridis, save_as='None'):
+    cmap=plt.cm.RdYlBu_r, save_as='None'):
     """
     Plot color magnitude diagram as a 2D density plot.
 
@@ -37,7 +37,7 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     Z[Z == 0] = np.nan
     Y, X = np.meshgrid(yedges, xedges)
 
-    
+
     fig = plt.figure(figsize=(7, 7))
     Z2 = np.log10(Z)
     Z3 = np.arcsinh(Z)
