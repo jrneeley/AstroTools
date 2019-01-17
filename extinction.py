@@ -1,8 +1,5 @@
 import numpy as np
 
-
-
-
 def cardelli(wave, Rv):
 
     x = 1./wave
@@ -24,7 +21,8 @@ def cardelli(wave, Rv):
         ratio = a + b/Rv
 
     else:
-        print 'Outside wavelength range of Cardelli Law.'
+        print 'Outside allowed wavelength range of Cardelli Law.'
+        ratio = np.nan
 
-    print a, b
     print 'Extinction ratio Ax/Av = {:.3f}'.format(ratio)
+    return ratio
