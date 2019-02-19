@@ -123,7 +123,7 @@ def hst_wfc2ground_synthetic(mag1, mag2, hst_band1, hst_band2, mag='vega'):
     mag1_new = mag1_0 + a0 + a1*col_new + a2*col_new**2
     mag2_new = mag2_0 + b0 + b1*col_new + b2*col_new**2
 
-
+    return mag1_new, mag2_new
 
 def hst_wfc2ground_observed():
     # Do same as above for observed transformations
