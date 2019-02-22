@@ -99,15 +99,21 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
 
     """
 
-    Z, xedges, yedges = np.histogram2d(color,mag,bins=(500,1000), \
+    Z, xedges, yedges = np.histogram2d(x,y,bins=(200,200), \
         range=[xlim, ylim])
     Z[Z == 0] = np.nan
     Y, X = np.meshgrid(yedges, xedges)
 
+    if plt_axes == False:
+        fig = plt.figure(figsize=(7, 7))
+        ax = fig.add_subplot(111)
+        ax.set_ylim(ylim)
+        ax.set_xlim(xlim)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
 
-    fig = plt.figure(figsize=(7, 7))
+    else: ax = plt_axes
 
-    ax = fig.add_subplot(111)
     if cbar_scale == 'linear':
         ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
     elif cbar_scale == 'log':
@@ -122,13 +128,10 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
     else:
         print 'Invalid color scale. Choose from: linear, log, arcsinh, sqrt'
         sys.exit()
-    ax.set_ylim(ylim)
-    ax.set_xlim(xlim)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
 
-    if save_as == 'None':
+    if (plt_axes == False) & (save_as == 'None'):
         plt.show()
-    else:
+
+    if save_as != 'None':
         print 'Saving CMD to file...'
         plt.savefig(save_as, format='pdf')
