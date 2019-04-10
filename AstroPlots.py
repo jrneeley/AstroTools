@@ -135,3 +135,16 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
     if save_as != 'None':
         print 'Saving CMD to file...'
         plt.savefig(save_as, format='pdf')
+
+
+def residual_plot(w=3.5, h=3.5):
+
+    fig = plt.figure(figsize=(w,h))
+    grid = plt.Gridspec(3,1. hspace=0.0)
+
+    ax1 = fig.add_subplot(grid[:-1,:])
+    ax2 = fig.add_subplot(grid[-1:,:])
+    ax1.tick_params(axis='x', direction='in')
+    ax1.set_xticklabels([])
+
+    return ax1, ax2

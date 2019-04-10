@@ -59,47 +59,69 @@ def cardelli(wave, Rv=3.1, extend=False, verbose=1):
     if verbose == 1: print 'Extinction ratio Ax/Av = {:.3f}'.format(ratio)
     return ratio
 
-def cardelli_named(band, Rv=3.1):
+def get_ext_ratio(band, Rv=3.1):
 
-    # Johnson-Cousins (from Bessel 2005)
-    if band == 'U': wave = 0.3663
-    if band == 'B': wave = 0.4361
-    if band == 'V': wave = 0.5448
-    if band == 'R': wave = 0.6407
-    if band == 'I': wave = 0.7980
-    # 2MASS
-    if band == 'J': wave = 1.235
-    if band == 'H': wave = 1.662
-    if band == 'Ks': wave = 2.159
-    # Spitzer/IRAC - currently not going to work
-    if band == '[3.6]': wave = 3.6
-    if band == '[4.5]': wave = 4.5
-    if band == '[5.8]': wave = 5.8
-    if band == '[8.0]': wave = 8.0
-    # WISE - currently not going to work
-    if band == 'W1': wave = 3.35
-    if band == 'W2': wave = 4.60
-    if band == 'W3': wave = 11.56
-    if band == 'W4': wave = 22.1
-    # HST ACS/WFC
-    if band == 'F435W': wave = 0.4317
-    if band == 'F475W': wave = 0.4744
-    if band == 'F555W': wave = 0.5360
-    if band == 'F606W': wave = 0.5918
-    if band == 'F625W': wave = 0.6311
-    if band == 'F775W': wave = 0.7693
-    if band == 'F814W': wave = 0.8060
-    # SDSS (from Bessel 2005)
-    if band == 'u': wave = 0.3596
-    if band == 'g': wave = 0.4639
-    if band == 'r': wave = 0.6122
-    if band == 'i': wave = 0.7439
-    if band == 'z': wave = 0.8896
+    cardelli_bands = np.array(['U', 'B', 'V', 'R', 'I', 'J', 'H', 'Ks',
+        'u', 'g', 'r', 'i', 'z',
+        'F435W', 'F475W', 'F555W', 'F606W', 'F775W', 'F814W',
+        'G', 'BP', 'RP'])
+    indebetouw_bands = np.array(['[3.6]', '[4.5]', '[5.8]', '[8.0]', 'W1', 'W2'])
 
+    if np.isin(band, cardelli_bands):
 
-    ratio = cardelli(wave, Rv=Rv)
+        # wave is effective wavelength
+        # Johnson-Cousins (from Bessel 2005)
+        if band == 'U': wave = 0.366 # 0.3663
+        if band == 'B': wave = 0.436 # 0.4361
+        if band == 'V': wave = 0.545 # 0.5448
+        if band == 'R': wave = 0.641 # 0.6407
+        if band == 'I': wave = 0.798 # 0.7980
+        # 2MASS
+        if band == 'J': wave = 1.235
+        if band == 'H': wave = 1.662
+        if band == 'Ks': wave = 2.159
+        # HST ACS/WFC
+        if band == 'F435W': wave = 0.432 # 0.4317
+        if band == 'F475W': wave = 0.474 # 0.4744
+        if band == 'F555W': wave = 0.536 # 0.5360
+        if band == 'F606W': wave = 0.592 # 0.5918
+        if band == 'F625W': wave = 0.631 # 0.6311
+        if band == 'F775W': wave = 0.769 # 0.7693
+        if band == 'F814W': wave = 0.806 # 0.8060
+        # SDSS (from Bessel 2005)
+        if band == 'u': wave = 0.360 # 0.3596
+        if band == 'g': wave = 0.464 # 0.4639
+        if band == 'r': wave = 0.612 # 0.6122
+        if band == 'i': wave = 0.744 # 0.7439
+        if band == 'z': wave = 0.890 # 0.8896
+        # Gaia
+        if band == 'G': wave = 0.673
+        if band == 'BP': wave = 0.532
+        if band == 'RP': wave = 0.797
 
-    return ratio
+        ratio = cardelli(wave, Rv=Rv, verbose=0)
+        return ratio
+
+    elif np.isin(band, indebetouw_bands):
+
+        # Spitzer/IRAC
+        if band == '[3.6]': wave = 3.545
+        if band == '[4.5]': wave = 4.442
+        if band == '[5.8]': wave = 5.675
+        if band == '[8.0]': wave = 7.760
+
+        # WISE
+        if band == 'W1': wave = 3.35
+        if band == 'W2': wave = 4.60
+        #if band == 'W3': wave = 11.56  # not yet supported
+        #if band == 'W4': wave = 22.1  # not yet supported
+
+        akav = cardelli(2.159, Rv=Rv, verbose=0)
+        ratio = indebetouw(wave, Ak_Av=akav)
+        return ratio
+
+    else:
+        print 'ERROR: Band not currently supported.'
 
 
 def plot_cardelli(Rv=[3.1]):
@@ -129,6 +151,8 @@ def plot_cardelli(Rv=[3.1]):
     plt.errorbar(indeb_w, indeb_r, yerr=indeb_e, color='k', fmt='o')
     plt.xlabel('$1/\lambda}$ [$\mu m^{-1}$]')
     plt.ylabel('$A_{\lambda}/A_V$')
+    plt.xlim(0,1.0)
+    plt.ylim(0,0.6)
     plt.show()
 
 
