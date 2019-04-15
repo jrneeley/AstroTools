@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import interpolate
 
 # Give central wavelength (in microns) and an Rv value, and the function
 # returns the extinction ratio for that band
@@ -59,6 +60,65 @@ def cardelli(wave, Rv=3.1, extend=False, verbose=1):
     if verbose == 1: print 'Extinction ratio Ax/Av = {:.3f}'.format(ratio)
     return ratio
 
+# Give central wavelength (in microns) and an Rv value, and the function
+# returns the extinction ratio for that band
+def cardelli_odonnell(wave, Rv=3.1, extend=False, verbose=1):
+
+    x = 1./wave
+
+    if (x >= 0.3) & (x <= 1.1): use = 'ir'
+    if (x > 1.1) & (x <= 3.3): use = 'opt'
+    if (x > 3.3) & (x <= 8.0): use = 'uv'
+    if extend == False:
+        if (x< 0.3) | (x > 8.0):
+            use = 'fail'
+    else:
+        if x < 0.3: use = 'ir'
+        if x > 8.0: use = 'uv'
+
+
+    # infrared 0.909 - 3.33 microns
+    if use =='ir':
+
+        a = 0.574*x**(1.61)
+        b = -0.527*x**(1.61)
+
+        ratio = a + b/Rv
+
+    # optical 0.303 - 0.900 microns
+    elif use == 'opt':
+
+        y = x - 1.82
+        a = 1 + 0.104*y - 0.609*y**2 + 0.701*y**3 + 1.137*y**4 \
+            - 1.718*y**5 - 0.827*y**6 + 1.647*y**7 - 0.508*y**8
+        b = 1.952*y + 2.908*y**2 - 3.989*y**3 - 7.985*y**4 \
+            + 11.102*y**5 + 5.491*y**6 - 10.805*y**7 + 3.347*y**8
+
+        ratio = a + b/Rv
+    # UV 0.125 - 0.303 microns
+    elif use == 'uv':
+
+        if (x <= 8.0) & (x >= 5.9):
+            Fa = -0.0447*(x-5.9)**2 - 0.009779*(x-5.9)**3
+            Fb = 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
+        else:
+            Fa = 0.0
+            Fb = 0.0
+
+        a = 1.752 - 0.316*x - 0.104/((x-4.67)**2+0.341) + Fa
+        b = -3.090 + 1.825*x + 1.206/((x-4.62)**2+0.263) + Fb
+
+        ratio = a + b/Rv
+
+    elif use == 'fail':
+
+        if verbose == 1: print 'Outside allowed wavelength range of Cardelli Law.'
+        ratio = np.nan
+
+    if verbose == 1: print 'Extinction ratio Ax/Av = {:.3f}'.format(ratio)
+    return ratio
+
+
 def get_ext_ratio(band, Rv=3.1):
 
     cardelli_bands = np.array(['U', 'B', 'V', 'R', 'I', 'J', 'H', 'Ks',
@@ -70,6 +130,20 @@ def get_ext_ratio(band, Rv=3.1):
     if np.isin(band, cardelli_bands):
 
         # wave is effective wavelength
+        # Effective wavelengths from Schlafly & Finkbeiner 2011
+        #if band == 'U': wave = 0.3734
+        #if band == 'B': wave = 0.4309
+        #if band == 'V': wave = 0.5517
+        #if band == 'R': wave = 0.6520
+        #if band == 'I': wave = 0.8007
+        # if band == 'ACS F435W': wave = 0.4348
+        # if band == 'ACS F475W': wave = 0.4760
+        # if band == 'ACS F555W': wave = 0.5361
+        # if band == 'ACS F606W': wave = 0.5901
+        # if band == 'ACS F625W': wave = 0.6298
+        # if band == 'ACS F775W': wave = 0.7673
+        # if band == 'ACS F814W': wave = 0.8012
+
         # Johnson-Cousins (from Bessel 2005)
         if band == 'U': wave = 0.366 # 0.3663
         if band == 'B': wave = 0.436 # 0.4361
@@ -163,3 +237,58 @@ def indebetouw(wave, Ak_Av=0.117):
     Awave_Av = 10**(log_ratio)*Ak_Av
 
     return Awave_Av
+
+
+def fitzpatrick(wave, R=3.1, fixed=0):
+
+    c2 = -0.824 + 4.717/R
+    c1 = 2.030 - 3.007*c2
+    x0 = 4.596
+    gamma = 0.99
+    c3 = 3.23
+    c4 = 0.41
+
+    if wave <= 0.27:
+
+        x = 1./wave
+        D = x**2/((x**2-x0**2)**2 + x**2*gamma**2)
+        k = c1 + c2*x + c3*D
+        if x >= 5.9:
+            F = 0.5392*(x-5.9)**2 + 0.05644*(x-5.9)**3
+            k += c4*F
+
+        R_new = k + R
+
+    else:
+        if fixed == 1:
+
+            x = np.array([0.000, 0.377, 0.820, 1.667, 1.828, 2.141, 2.433, 3.704, 3.846])
+            y = np.array([0.000, 0.265, 0.829, 2.688, 3.055, 3.806, 4.315, 6.265, 6.591])
+
+            tck = interpolate.splrep(x, y, s=0)
+            x_new = 1./wave
+            R_new = interpolate.splev(x_new, tck, der=0)
+
+        if fixed == 0:
+
+            # Use spline interpolation
+            # Figure out where these spline anchor oringate from. Got them from
+            # IDL procedure FM_UNRED
+            x = np.array([0.0, 0.3774, 0.8197, 1.6667, 1.8282, 2.1413, 2.4331, 3.7037, 3.8462])
+            y = np.zeros(len(x))
+            y[0] = 0.0
+            y[1] = 0.26469*R/3.1
+            y[2] = 0.82925*R/3.1
+            y[3] = -4.22809e-1 + 1.00270*R + 2.13572e-4*R**2
+            y[4] = -5.13540e-2 + 1.00216*R - 7.35778e-5*R**2
+            y[5] = 7.00127e-1 + 1.00184*R - 3.32598e-5*R**2
+            y[6] = 1.19459 + 1.01707*R - 5.46959e-3*R**2 + 7.97809e-4*R**3 - 4.45636e-5*R**4
+            D = x[7:]**2/((x[7:]**2-x0**2)**2 + x[7:]**2*gamma**2)
+            y[7] = c1 + c2*x[7] + c3*D[0] + R
+            y[8] = c1 + c2*x[8] + c3*D[1] + R
+
+            tck = interpolate.splrep(x, y, s=0)
+            xnew = 1./wave
+            R_new = interpolate.splev(xnew, tck, der=0)
+
+    return R_new
