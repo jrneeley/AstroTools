@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-
+import matplotlib.gridspec as gridspec
 
 def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     ylabel='mag', cbar_max=None, cbar_min=None, cbar_scale='linear', \
@@ -45,7 +45,7 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
         ax = plt_axes
 
     if cbar_scale == 'linear':
-        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max, rasterized=rasterized)
     elif cbar_scale == 'log':
         Z_new = np.log10(Z)
         ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
@@ -140,11 +140,11 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
 def residual_plot(w=3.5, h=3.5):
 
     fig = plt.figure(figsize=(w,h))
-    grid = plt.Gridspec(3,1. hspace=0.0)
+    grid = gridspec.GridSpec(3,1, hspace=0.0)
 
     ax1 = fig.add_subplot(grid[:-1,:])
-    ax2 = fig.add_subplot(grid[-1:,:])
+    ax2 = fig.add_subplot(grid[-1:,:], sharex=ax1)
     ax1.tick_params(axis='x', direction='in')
-    ax1.set_xticklabels([])
-
+    #ax1.set_xticklabels([])
+    plt.setp(ax1.get_xticklabels(), visible=False)
     return ax1, ax2
