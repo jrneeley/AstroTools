@@ -83,6 +83,8 @@ def compute_variability_index(filters, mjds, mags, errs,
             i2 = 0
             for i in range(np.max(n)):
                 if pick == 0:
+                    if i2 == n2:
+                        break
                     if np.abs(group1_mjds[i] - group2_mjds[i2]) > MAX_TIME:
                         group1_mags[i] = np.nan
                         group1_errs[i] = np.nan
@@ -90,6 +92,8 @@ def compute_variability_index(filters, mjds, mags, errs,
                     else:
                         i2 += 1
                 if pick == 1:
+                    if i2 == n1:
+                        break
                     if np.abs(group1_mjds[i2] - group2_mjds[i]) > MAX_TIME:
                         group2_mags[i] = np.nan
                         group2_errs[i] = np.nan
@@ -102,24 +106,24 @@ def compute_variability_index(filters, mjds, mags, errs,
             group2_errs = group2_errs[~np.isnan(group2_errs)]
 
 
-            nfinal = len(group1_mags)
+            nfinal = float(len(group1_mags))
             delta1 = np.sum((group1_mags-group1_mean_mag)/group1_errs)
             delta2 = np.sum((group2_mags-group2_mean_mag)/group2_errs)
-            stat = np.sqrt(1/(nfinal*(nfinal-1)))*delta1*delta2
+            stat = np.sqrt(1./(nfinal*(nfinal-1)))*delta1*delta2
 
         return stat
 
     if statistic == 'StetsonJ':
 
         weighted_mean = stetson_robust_mean(mags, errs)
-        n = len(mags)
+        n = float(len(mags))
         select = filters == filter_list[0]
         weighted_mean1 = stetson_robust_mean(mags[select], errs[select])
-        n1 = len(mags[select])
+        n1 = float(len(mags[select]))
         if n_filts > 1:
             select = filters == filter_list[1]
             weighted_mean2 = stetson_robust_mean(mags[select], errs[select])
-            n2 = len(mags[select])
+            n2 = float(len(mags[select]))
 
         order = np.argsort(mjds)
         mags = mags[order]
@@ -189,7 +193,7 @@ def compute_variability_index(filters, mjds, mags, errs,
             mean_mag2 = np.mean(mags[f2])
             sum1 = np.sum((mags[f1]-mean_mag1)**2/errs[f1]**2)
             sum2 = np.sum((mags[f2]-mean_mag2)**2/errs[f2]**2)
-            stat = 1/n_tot*(sum1+sum2)
+            stat = 1./n_tot*(sum1+sum2)
 
         return stat
 
