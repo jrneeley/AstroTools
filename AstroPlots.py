@@ -148,3 +148,98 @@ def residual_plot(w=3.5, h=3.5):
     #ax1.set_xticklabels([])
     plt.setp(ax1.get_xticklabels(), visible=False)
     return ax1, ax2
+
+
+# A helper function to make the plots with error ellipses
+def plot_error_ellipses(ax, X, S, color="k"):
+    for n in range(len(X)):
+        vals, vecs = np.linalg.eig(S[n])
+        theta = np.degrees(np.arctan2(*vecs[::-1, 0]))
+        w, h = 2 * np.sqrt(vals)
+        ell = Ellipse(xy=X[n], width=w, height=h,
+                      angle=theta, color=color, lw=0.5)
+        ell.set_facecolor("none")
+        ax.add_artist(ell)
+    ax.plot(X[:, 0], X[:, 1], ".", color=color, ms=4)
+
+# Plot corner plot of 3D data
+def plot_3D_data(x, y, z, xerr=None, yerr=None, zerr=None, plt_axes=False,
+    error_ellipse=True, invert_x=False, invert_y=False, invert_z=False,
+    xlabel='x', ylabel='y', zlabel='z', color='k', plt_fig=False):
+
+    """
+    Plot the 2D planes of 3D data in a corner-type plot.
+
+    Required parameters:
+
+    x - array containing the x values
+    y - array containing the y values
+    z - array containing the z values
+
+    Optional Keywords:
+
+
+    """
+
+    if plt_axes == False:
+        fig, axes = plt.subplots(2,2, figsize=(5,5))
+    else:
+        axes = plt_axes
+        fig = plt_fig
+
+    N = len(x)
+    X = np.empty((N, 3))
+    X[:,0] = x
+    X[:,1] = y
+    X[:,2] = z
+
+    S = np.zeros((N, 3, 3))
+    for n in range(N):
+        S[n,0,0] = xerr[n]**2
+        S[n,1,1] = yerr[n]**2
+        S[n,2,2] = zerr[n]**2
+
+    if error_ellipse == True:
+        for xi, yi in product(range(3), range(3)):
+
+            if yi <= xi:
+                continue
+            ax = axes[yi-1, xi]
+            plot_error_ellipses(ax, X[:, [xi, yi]],
+                                S[:,
+                                    [[xi, xi], [yi, yi]],
+                                    [[xi, yi], [xi, yi]]])
+    else:
+        axes[0,0].errorbar(x, y, xerr=xerr, yerr=yerr, fmt='.', alpha=0.7,
+            color=color, elinewidth=1.0)
+        axes[1,0].errorbar(x, z, xerr=xerr, yerr=zerr, fmt='.', alpha=0.7,
+            color=color, elinewidth=1.0)
+        axes[1,1].errorbar(y, z, xerr=yerr, yerr=zerr, fmt='.', alpha=0.7,
+            color=color, elinewidth=1.0)
+
+    # determine plot limits
+    if invert_x == True:
+        axes[0,0].invert_xaxis()
+        axes[1,0].invert_xaxis()
+    if invert_y == True:
+        axes[0,0].invert_yaxis()
+        axes[1,1].invert_xaxis()
+    if invert_z == True:
+        axes[1,0].invert_yaxis()
+        axes[1,1].invert_yaxis()
+
+    # Make the plots look nicer...
+    ax = axes[0, 1]
+    ax.set_frame_on(False)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    # Plot labels
+    axes[0,0].set_ylabel(ylabel)
+    axes[0,0].set_xticklabels([])
+    axes[1,0].set_xlabel(xlabel)
+    axes[1,0].set_ylabel(zlabel)
+    axes[1,1].set_xlabel(ylabel)
+    axes[1,1].set_yticklabels([])
+    fig.subplots_adjust(wspace=0, hspace=0)
+
+    return fig
