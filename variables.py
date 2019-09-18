@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 def compute_variability_index(filters, mjds, mags, errs,
-    statistic='WelchStetsonI',max_time=0.02):
+    statistic='WelchStetsonI', max_time=0.02):
 
     # separate filters
     filter_list = np.unique(filters)
@@ -120,7 +120,7 @@ def compute_variability_index(filters, mjds, mags, errs,
         fils = filters[order]
 
         if n_filts == 1:
-            weighted_mean = stetson_robust_mean(mags, errs)
+            wmean = stetson_robust_mean(mags, errs)
             n = float(len(mags))
 
             P = 0
@@ -131,13 +131,13 @@ def compute_variability_index(filters, mjds, mags, errs,
                     skip_next = False
                     continue
                 if mjds[i+1] - mjds[i] <= max_time:
-                     delta1 = np.sqrt(n/(n-1))*(mags[i] - weighted_mean)/errs[i]
-                     delta2 = np.sqrt(n/(n-1))*(mags[i+1] - weighted_mean)/errs[i+1]
+                     delta1 = np.sqrt(n/(n-1))*(mags[i] - wmean)/errs[i]
+                     delta2 = np.sqrt(n/(n-1))*(mags[i+1] - wmean)/errs[i+1]
                      P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                      skip_next = True
                      n_pairs += 1
                 else:
-                    delta1 = np.sqrt(n/(n-1))*(mags[i] - weighted_mean)/errs[i]
+                    delta1 = np.sqrt(n/(n-1))*(mags[i] - wmean)/errs[i]
                     P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
                     skip_next = False
                     n_pairs += 1
@@ -146,10 +146,10 @@ def compute_variability_index(filters, mjds, mags, errs,
         if n_filts == 2:
 
             select = filters == filter_list[0]
-            weighted_mean1 = stetson_robust_mean(mags[select], errs[select])
+            wmean1 = stetson_robust_mean(mags[select], errs[select])
             n1 = float(len(mags[select]))
             select = filters == filter_list[1]
-            weighted_mean2 = stetson_robust_mean(mags[select], errs[select])
+            wmean2 = stetson_robust_mean(mags[select], errs[select])
             n2 = float(len(mags[select]))
 
             P = 0
@@ -163,27 +163,27 @@ def compute_variability_index(filters, mjds, mags, errs,
                     # Check if they are observations in the same or different filter
                     if fils[i+1] == fils[i]:
                         if fils[i] == filter_list[0]:
-                            delta1 = np.sqrt(n1/(n1-1))*(mags[i] - weighted_mean1)/errs[i]
-                            delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - weighted_mean1)/errs[i+1]
+                            delta1 = np.sqrt(n1/(n1-1))*(mags[i] - wmean1)/errs[i]
+                            delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - wmean1)/errs[i+1]
                         else:
-                            delta1 = np.sqrt(n2/(n2-1))*(mags[i] - weighted_mean2)/errs[i]
-                            delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - weighted_mean2)/errs[i+1]
+                            delta1 = np.sqrt(n2/(n2-1))*(mags[i] - wmean2)/errs[i]
+                            delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - wmean2)/errs[i+1]
                         P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                         skip_next = True
                     else:
                         if fils[i] == filter_list[0]:
-                            delta1 = np.sqrt(n1/(n1-1))*(mags[i] - weighted_mean1)/errs[i]
-                            delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - weighted_mean2)/errs[i+1]
+                            delta1 = np.sqrt(n1/(n1-1))*(mags[i] - wmean1)/errs[i]
+                            delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - wmean2)/errs[i+1]
                         else:
-                            delta1 = np.sqrt(n2/(n2-1))*(mags[i] - weighted_mean2)/errs[i]
-                            delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - weighted_mean1)/errs[i+1]
+                            delta1 = np.sqrt(n2/(n2-1))*(mags[i] - wmean2)/errs[i]
+                            delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - wmean1)/errs[i+1]
                         P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                         skip_next = True
                 else:
                     if fils[i] == filter_list[0]:
-                        delta1 = np.sqrt(n1/(n1-1))*(mags[i] - weighted_mean1)/errs[i]
+                        delta1 = np.sqrt(n1/(n1-1))*(mags[i] - wmean1)/errs[i]
                     else:
-                        delta1 = np.sqrt(n2/(n2-1))*(mags[i] - weighted_mean2)/errs[i]
+                        delta1 = np.sqrt(n2/(n2-1))*(mags[i] - wmean2)/errs[i]
                     P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
                     skip_next = False
                 n_pairs += 1
@@ -194,10 +194,10 @@ def compute_variability_index(filters, mjds, mags, errs,
 
     if statistic == 'StetsonK':
         # NOT FINISHED
-        weighted_mean = stetson_robust_mean(mags, errs)
+        wmean = stetson_robust_mean(mags, errs)
         n = float(len(mags))
 
-        delta = np.sqrt(n/(n-1))*(mags-weighted_mean)
+        delta = np.sqrt(n/(n-1))*(mags-wmean)
 
     if statistic == 'reduced chisq':
 
