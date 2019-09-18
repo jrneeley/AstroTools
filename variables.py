@@ -1,12 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-MAX_TIME = 0.02 # Requires observations to be within 0.02 days (or 30 min)
-                # of each other to form a pair
-
 
 def compute_variability_index(filters, mjds, mags, errs,
-    statistic='WelchStetsonI'):
+    statistic='WelchStetsonI',max_time=0.02):
 
     # separate filters
     filter_list = np.unique(filters)
@@ -18,7 +15,7 @@ def compute_variability_index(filters, mjds, mags, errs,
 
         if n_filts == 1:
             # Derive weighted mean from full sample
-            mean_mag = np.sum(mags/errs**2)/np.sum(1/errs**2)
+            mean_mag = weighted_mean(mags, errs)
 
             # Get observation pairs
             # sort by observation time
@@ -36,7 +33,7 @@ def compute_variability_index(filters, mjds, mags, errs,
                 if skip == True:
                     skip = False
                     continue
-                if mjds[i+1] - mjds[i] < MAX_TIME:
+                if mjds[i+1] - mjds[i] < max_time:
                     group1_mags = np.append(group1_mags, mags[i])
                     group2_mags = np.append(group2_mags, mags[i+1])
                     group1_errs = np.append(group1_errs, errs[i])
@@ -44,7 +41,7 @@ def compute_variability_index(filters, mjds, mags, errs,
                     skip = True
 
 
-            n = len(group1_mags)
+            n = float(len(group1_mags))
             delta1 = np.sum((group1_mags-mean_mag)/group1_errs)
             delta2 = np.sum((group2_mags-mean_mag)/group2_errs)
 
@@ -52,78 +49,69 @@ def compute_variability_index(filters, mjds, mags, errs,
 
         if n_filts == 2:
 
-            filt1 = filters == filter_list[0]
-            filt2 = filters == filter_list[1]
-            group1_mags = mags[filt1]
-            group2_mags = mags[filt2]
-            group1_errs = errs[filt1]
-            group2_errs = errs[filt2]
-            group1_mjds = mjds[filt1]
-            group2_mjds = mjds[filt2]
+            f1 = filters == filter_list[0]
+            f2 = filters == filter_list[1]
+            mags1 = mags[f1]
+            mags2 = mags[f2]
+            errs1 = errs[f1]
+            errs2 = errs[f2]
+            mjds1 = mjds[f1]
+            mjds2 = mjds[f2]
 
-            order1 = np.argsort(group1_mjds)
-            order2 = np.argsort(group2_mjds)
+            order1 = np.argsort(mjds1)
+            order2 = np.argsort(mjds2)
 
-            group1_mags = group1_mags[order1]
-            group2_mags = group2_mags[order2]
-            group1_errs = group1_errs[order1]
-            group2_errs = group2_errs[order2]
-            group1_mjds = group1_mjds[order1]
-            group2_mjds = group2_mjds[order2]
+            mags1 = mags1[order1]
+            mags2 = mags2[order2]
+            errs1 = errs1[order1]
+            errs2 = errs2[order2]
+            mjds1 = mjds1[order1]
+            mjds2 = mjds2[order2]
 
 
-            group1_mean_mag = np.sum(group1_mags/group1_errs**2)/np.sum(1/group1_errs**2)
-            group2_mean_mag = np.sum(group2_mags/group2_errs**2)/np.sum(1/group2_errs**2)
+            mean_mag1 = weighted_mean(mags1, errs1)
+            mean_mag2 = weighted_mean(mags2, errs2)
 
-            n1 = len(group1_mags)
-            n2 = len(group2_mags)
+            n1 = len(mags1)
+            n2 = len(mags2)
             n = np.array([n1, n2])
             pick = np.argmax(n)
+
+            group1_mags = np.array([])
+            group2_mags = np.array([])
+            group1_errs = np.array([])
+            group2_errs = np.array([])
 
             i2 = 0
             for i in range(np.max(n)):
                 if pick == 0:
                     if i2 == n2:
                         break
-                    if np.abs(group1_mjds[i] - group2_mjds[i2]) > MAX_TIME:
-                        group1_mags[i] = np.nan
-                        group1_errs[i] = np.nan
-                        group1_mjds[i] = np.nan
-                    else:
+                    if np.abs(mjds1[i] - mjds2[i2]) <= max_time:
+                        group1_mags = np.append(group1_mags, mags1[i])
+                        group2_mags = np.append(group2_mags, mags2[i2])
+                        group1_errs = np.append(group1_errs, errs1[i])
+                        group2_errs = np.append(group2_errs, errs2[i2])
                         i2 += 1
+
                 if pick == 1:
                     if i2 == n1:
                         break
-                    if np.abs(group1_mjds[i2] - group2_mjds[i]) > MAX_TIME:
-                        group2_mags[i] = np.nan
-                        group2_errs[i] = np.nan
-                        group2_mjds[i] = np.nan
-                    else:
+                    if np.abs(mjds1[i2] - mjds2[i]) <= max_time:
+                        group1_mags = np.append(group1_mags, mags1[i2])
+                        group2_mags = np.append(group2_mags, mags2[i])
+                        group1_errs = np.append(group1_errs, errs1[i2])
+                        group2_errs = np.append(group2_errs, errs2[i])
                         i2 += 1
-            group1_mags = group1_mags[~np.isnan(group1_mags)]
-            group2_mags = group2_mags[~np.isnan(group2_mags)]
-            group1_errs = group1_errs[~np.isnan(group1_errs)]
-            group2_errs = group2_errs[~np.isnan(group2_errs)]
 
-
-            nfinal = float(len(group1_mags))
-            delta1 = np.sum((group1_mags-group1_mean_mag)/group1_errs)
-            delta2 = np.sum((group2_mags-group2_mean_mag)/group2_errs)
-            stat = np.sqrt(1./(nfinal*(nfinal-1)))*delta1*delta2
+            npairs = float(len(group1_mags))
+            delta1 = np.sum((group1_mags-mean_mag1)/group1_errs)
+            delta2 = np.sum((group2_mags-mean_mag2)/group2_errs)
+            stat = np.sqrt(1./(npairs*(npairs-1)))*delta1*delta2
 
         return stat
 
     if statistic == 'StetsonJ':
-
-        weighted_mean = stetson_robust_mean(mags, errs)
-        n = float(len(mags))
-        select = filters == filter_list[0]
-        weighted_mean1 = stetson_robust_mean(mags[select], errs[select])
-        n1 = float(len(mags[select]))
-        if n_filts > 1:
-            select = filters == filter_list[1]
-            weighted_mean2 = stetson_robust_mean(mags[select], errs[select])
-            n2 = float(len(mags[select]))
 
         order = np.argsort(mjds)
         mags = mags[order]
@@ -131,69 +119,156 @@ def compute_variability_index(filters, mjds, mags, errs,
         mjds = mjds[order]
         fils = filters[order]
 
-        P = 0
-        n_pairs = 0
-        skip_next = False
-        for i in range(len(mags)-1):
-            if skip_next == True:
-                skip_next = False
-                continue
-            if mjds[i+1] - mjds[i] < MAX_TIME:
-                # Check if they are observations in the same or different filter
-                if fils[i+1] == fils[i]:
-                    delta1 = np.sqrt(n/(n-1))*(mags[i] - weighted_mean)/errs[i]
-                    delta2 = np.sqrt(n/(n-1))*(mags[i+1] - weighted_mean)/errs[i+1]
-                    P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
-                    skip_next = True
+        if n_filts == 1:
+            weighted_mean = stetson_robust_mean(mags, errs)
+            n = float(len(mags))
+
+            P = 0
+            n_pairs = 0
+            skip_next = False
+            for i in range(len(mags)-1):
+                if skip_next == True:
+                    skip_next = False
+                    continue
+                if mjds[i+1] - mjds[i] <= max_time:
+                     delta1 = np.sqrt(n/(n-1))*(mags[i] - weighted_mean)/errs[i]
+                     delta2 = np.sqrt(n/(n-1))*(mags[i+1] - weighted_mean)/errs[i+1]
+                     P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
+                     skip_next = True
+                     n_pairs += 1
                 else:
-                    if fils[i] == filter_list[0]:
-                        delta1 = np.sqrt(n1/(n1-1))*(mags[i] - weighted_mean1)/errs[i]
-                        delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - weighted_mean2)/errs[i+1]
+                    delta1 = np.sqrt(n/(n-1))*(mags[i] - weighted_mean)/errs[i]
+                    P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
+                    skip_next = False
+                    n_pairs += 1
+            stat = P
+
+        if n_filts == 2:
+
+            select = filters == filter_list[0]
+            weighted_mean1 = stetson_robust_mean(mags[select], errs[select])
+            n1 = float(len(mags[select]))
+            select = filters == filter_list[1]
+            weighted_mean2 = stetson_robust_mean(mags[select], errs[select])
+            n2 = float(len(mags[select]))
+
+            P = 0
+            n_pairs = 0
+            skip_next = False
+            for i in range(len(mags)-1):
+                if skip_next == True:
+                    skip_next = False
+                    continue
+                if mjds[i+1] - mjds[i] <= max_time:
+                    # Check if they are observations in the same or different filter
+                    if fils[i+1] == fils[i]:
+                        if fils[i] == filter_list[0]:
+                            delta1 = np.sqrt(n1/(n1-1))*(mags[i] - weighted_mean1)/errs[i]
+                            delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - weighted_mean1)/errs[i+1]
+                        else:
+                            delta1 = np.sqrt(n2/(n2-1))*(mags[i] - weighted_mean2)/errs[i]
+                            delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - weighted_mean2)/errs[i+1]
                         P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                         skip_next = True
                     else:
-                        delta1 = np.sqrt(n2/(n2-1))*(mags[i] - weighted_mean2)/errs[i]
-                        delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - weighted_mean1)/errs[i+1]
+                        if fils[i] == filter_list[0]:
+                            delta1 = np.sqrt(n1/(n1-1))*(mags[i] - weighted_mean1)/errs[i]
+                            delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - weighted_mean2)/errs[i+1]
+                        else:
+                            delta1 = np.sqrt(n2/(n2-1))*(mags[i] - weighted_mean2)/errs[i]
+                            delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - weighted_mean1)/errs[i+1]
                         P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                         skip_next = True
-            else:
-                if fils[i] == filter_list[0]:
-                    delta1 = np.sqrt(n1/(n1-1))*(mags[i] - weighted_mean1)/errs[i]
-                    P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
-                    skip_next = False
                 else:
-                    delta1 = np.sqrt(n2/(n2-1))*(mags[i] - weighted_mean2)/errs[i]
+                    if fils[i] == filter_list[0]:
+                        delta1 = np.sqrt(n1/(n1-1))*(mags[i] - weighted_mean1)/errs[i]
+                    else:
+                        delta1 = np.sqrt(n2/(n2-1))*(mags[i] - weighted_mean2)/errs[i]
                     P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
                     skip_next = False
-            n_pairs += 1
+                n_pairs += 1
 
-        stat = P
+            stat = P
 
         return stat
 
     if statistic == 'StetsonK':
         # NOT FINISHED
         weighted_mean = stetson_robust_mean(mags, errs)
-        n = len(mags)
+        n = float(len(mags))
 
         delta = np.sqrt(n/(n-1))*(mags-weighted_mean)
 
     if statistic == 'reduced chisq':
 
         if n_filts == 1:
-            n = len(mags)
-            mean_mag = np.mean(mags)
+            n = float(len(mags))
+            mean_mag = weighted_mean(mags, errs)
             stat = 1/n*np.sum((mags-mean_mag)**2/errs**2)
 
-        if n_filts == 2:
-            f1 = filters == filter_list[0]
-            f2 = filters == filter_list[1]
-            n_tot = len(mags[f1]) + len(mags[f2])
-            mean_mag1 = np.mean(mags[f1])
-            mean_mag2 = np.mean(mags[f2])
-            sum1 = np.sum((mags[f1]-mean_mag1)**2/errs[f1]**2)
-            sum2 = np.sum((mags[f2]-mean_mag2)**2/errs[f2]**2)
-            stat = 1./n_tot*(sum1+sum2)
+        if n_filts > 1:
+
+            n_tot = 0
+            sum = 0
+            for i in range(n_filts):
+                f = filters == filter_list[i]
+                n_tot += float(len(mags[f]))
+                mean_mag = weighted_mean(mags[f], errs[f])
+                sum += np.sum((mags[f]-mean_mag)**2/errs[f]**2)
+
+            stat = 1./(n_tot-1)*(sum)
+
+        return stat
+
+    if statistic == 'weighted std':
+
+        if n_filts == 1:
+            n = float(len(mags))
+            w = 1./errs**2
+            mean_mag = weighted_mean(mags, errs)
+            stat = np.sum(w)*np.sum(w*(mags-mean_mag)**2)/(np.sum(w)**2-np.sum(w**2))
+            stat = np.sqrt(stat)
+
+        # should it be added in quadrature?
+        #if n_filts > 1:
+
+        return stat
+
+    if statistic == 'MAD':
+
+        if n_filts == 1:
+            n = float(len(mags))
+            order = np.argsort(mjds)
+            m = mags[order]
+            e = errs[order]
+
+            med = np.median(m)
+            stat = np.median(np.abs(m - med))
+
+        return stat
+
+    if statistic == 'IQR':
+
+        if n_filts == 1:
+            n = float(len(mags))
+            order = np.argsort(mags)
+
+            m = mags[order]
+            e = errs[order]
+
+            q2= np.median(m)
+            q1 = np.median(m[0:n/2])
+            q3 = np.median(m[n/2:-1])
+
+            stat = q3 - q1
+
+    if statistic == 'RoMS':
+
+        if n_filts == 1:
+            n = float(len(mags))
+            sum = np.sum(np.abs(mags-np.median(mags))/errs)
+
+            stat = sum/(n-1)
 
         return stat
 
@@ -222,6 +297,14 @@ def stetson_robust_mean(mags, errs):
         old_mean = new_mean
 
     return new_mean
+
+def weighted_mean(mags, errs):
+
+    w = 1./errs**2
+    mean = np.sum(mags*w)/np.sum(w)
+
+    return mean
+
 
 def find_variables(index='StetsonJ'):
 
