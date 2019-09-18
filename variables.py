@@ -147,9 +147,13 @@ def compute_variability_index(filters, mjds, mags, errs,
 
             select = filters == filter_list[0]
             wmean1 = stetson_robust_mean(mags[select], errs[select])
+            #wmean1 = weighted_mean(mags[select], errs[select])
+            #wmean1 = np.mean(mags[select])
             n1 = float(len(mags[select]))
             select = filters == filter_list[1]
             wmean2 = stetson_robust_mean(mags[select], errs[select])
+            #wmean2 = weighted_mean(mags[select], errs[select])
+            #wmean2 = np.mean(mags[select])
             n2 = float(len(mags[select]))
 
             P = 0
