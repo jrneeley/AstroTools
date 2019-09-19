@@ -14,38 +14,33 @@ def compute_variability_index(filters, mjds, mags, errs,
     # observations in two filters
 
         if n_filts == 1:
+
             # Derive weighted mean from full sample
             mean_mag = weighted_mean(mags, errs)
 
             # Get observation pairs
             # sort by observation time
             order = np.argsort(mjds)
-            mags = mags[order]
-            errs = errs[order]
-            mjds = mjds[order]
-
-            group1_mags = np.array([])
-            group1_errs = np.array([])
-            group2_mags = np.array([])
-            group2_errs = np.array([])
+            m = mags[order]
+            e = errs[order]
+            j = mjds[order]
+            #print(mjds)
+            sum = 0
+            npairs = 0.0
             skip = False
-            for i in range(len(mags)-1):
+            for i in range(len(m)-1):
                 if skip == True:
                     skip = False
                     continue
-                if mjds[i+1] - mjds[i] < max_time:
-                    group1_mags = np.append(group1_mags, mags[i])
-                    group2_mags = np.append(group2_mags, mags[i+1])
-                    group1_errs = np.append(group1_errs, errs[i])
-                    group2_errs = np.append(group2_errs, errs[i+1])
+                if j[i+1] - j[i] < max_time:
+                    delta1 = (m[i]-mean_mag)/e[i]
+                    delta2 = (m[i+1]-mean_mag)/e[i]
+                    sum += delta1*delta2
+                    npairs += 1
                     skip = True
 
-
-            n = float(len(group1_mags))
-            delta1 = np.sum((group1_mags-mean_mag)/group1_errs)
-            delta2 = np.sum((group2_mags-mean_mag)/group2_errs)
-
-            stat = np.sqrt(1/(n*(n-1)))*delta1*delta2
+            npairs = float(npairs)
+            stat = np.sqrt(1/(npairs*(npairs-1)))*sum
 
         if n_filts == 2:
 
@@ -77,46 +72,40 @@ def compute_variability_index(filters, mjds, mags, errs,
             n = np.array([n1, n2])
             pick = np.argmax(n)
 
-            group1_mags = np.array([])
-            group2_mags = np.array([])
-            group1_errs = np.array([])
-            group2_errs = np.array([])
-
+            sum = 0
             i2 = 0
+            npairs = 0.0
             for i in range(np.max(n)):
                 if pick == 0:
                     if i2 == n2:
                         break
                     if np.abs(mjds1[i] - mjds2[i2]) <= max_time:
-                        group1_mags = np.append(group1_mags, mags1[i])
-                        group2_mags = np.append(group2_mags, mags2[i2])
-                        group1_errs = np.append(group1_errs, errs1[i])
-                        group2_errs = np.append(group2_errs, errs2[i2])
+                        delta1 = (mags1[i]-mean_mag1)/errs1[i]
+                        delta2 = (mags2[i2]-mean_mag2)/errs2[i2]
+                        sum += delta1*delta2
+                        npairs += 1
                         i2 += 1
 
                 if pick == 1:
                     if i2 == n1:
                         break
                     if np.abs(mjds1[i2] - mjds2[i]) <= max_time:
-                        group1_mags = np.append(group1_mags, mags1[i2])
-                        group2_mags = np.append(group2_mags, mags2[i])
-                        group1_errs = np.append(group1_errs, errs1[i2])
-                        group2_errs = np.append(group2_errs, errs2[i])
+                        delta1 = (mags1[i2]-mean_mag1)/errs1[i2]
+                        delta2 = (mags2[i]-mean_mag2)/errs2[i]
+                        sum += delta1*delta2
+                        npairs += 1
                         i2 += 1
 
-            npairs = float(len(group1_mags))
-            delta1 = np.sum((group1_mags-mean_mag1)/group1_errs)
-            delta2 = np.sum((group2_mags-mean_mag2)/group2_errs)
-            stat = np.sqrt(1./(npairs*(npairs-1)))*delta1*delta2
+            stat = np.sqrt(1./(npairs*(npairs-1)))*sum
 
         return stat
 
     if statistic == 'StetsonJ':
 
         order = np.argsort(mjds)
-        mags = mags[order]
-        errs = errs[order]
-        mjds = mjds[order]
+        m = mags[order]
+        e = errs[order]
+        j = mjds[order]
         fils = filters[order]
 
         if n_filts == 1:
@@ -130,14 +119,14 @@ def compute_variability_index(filters, mjds, mags, errs,
                 if skip_next == True:
                     skip_next = False
                     continue
-                if mjds[i+1] - mjds[i] <= max_time:
-                     delta1 = np.sqrt(n/(n-1))*(mags[i] - wmean)/errs[i]
-                     delta2 = np.sqrt(n/(n-1))*(mags[i+1] - wmean)/errs[i+1]
-                     P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
-                     skip_next = True
-                     n_pairs += 1
+                if j[i+1] - j[i] <= max_time:
+                    delta1 = np.sqrt(n/(n-1))*(m[i] - wmean)/e[i]
+                    delta2 = np.sqrt(n/(n-1))*(m[i+1] - wmean)/e[i+1]
+                    P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
+                    skip_next = True
+                    n_pairs += 1
                 else:
-                    delta1 = np.sqrt(n/(n-1))*(mags[i] - wmean)/errs[i]
+                    delta1 = np.sqrt(n/(n-1))*(m[i] - wmean)/e[i]
                     P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
                     skip_next = False
                     n_pairs += 1
@@ -145,49 +134,54 @@ def compute_variability_index(filters, mjds, mags, errs,
 
         if n_filts == 2:
 
-            select = filters == filter_list[0]
-            wmean1 = stetson_robust_mean(mags[select], errs[select])
-            #wmean1 = weighted_mean(mags[select], errs[select])
-            #wmean1 = np.mean(mags[select])
-            n1 = float(len(mags[select]))
-            select = filters == filter_list[1]
-            wmean2 = stetson_robust_mean(mags[select], errs[select])
-            #wmean2 = weighted_mean(mags[select], errs[select])
-            #wmean2 = np.mean(mags[select])
-            n2 = float(len(mags[select]))
+            f1 = filters == filter_list[0]
+            wmean1 = stetson_robust_mean(mags[f1], errs[f1])
+            n1 = float(len(mags[f1]))
+            f2 = filters == filter_list[1]
+            wmean2 = stetson_robust_mean(mags[f2], errs[f2])
+            n2 = float(len(mags[f2]))
 
             P = 0
             n_pairs = 0
             skip_next = False
             for i in range(len(mags)-1):
+
                 if skip_next == True:
                     skip_next = False
                     continue
-                if mjds[i+1] - mjds[i] <= max_time:
+                #print(i, j[i], fils[i])
+                #print(i+1, j[i+1], fils[i+1])
+                if j[i+1] - j[i] <= max_time:
+                    #print(fils[i], fils[i+1])
                     # Check if they are observations in the same or different filter
+                    # Same filter, two obs
                     if fils[i+1] == fils[i]:
                         if fils[i] == filter_list[0]:
-                            delta1 = np.sqrt(n1/(n1-1))*(mags[i] - wmean1)/errs[i]
-                            delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - wmean1)/errs[i+1]
+                            delta1 = np.sqrt(n1/(n1-1))*(m[i] - wmean1)/e[i]
+                            delta2 = np.sqrt(n1/(n1-1))*(m[i+1] - wmean1)/e[i+1]
                         else:
-                            delta1 = np.sqrt(n2/(n2-1))*(mags[i] - wmean2)/errs[i]
-                            delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - wmean2)/errs[i+1]
+                            delta1 = np.sqrt(n2/(n2-1))*(m[i] - wmean2)/e[i]
+                            delta2 = np.sqrt(n2/(n2-1))*(m[i+1] - wmean2)/e[i+1]
+                        #print(np.sign(delta1*delta2))
                         P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                         skip_next = True
+                    # Different filters, two obs
                     else:
                         if fils[i] == filter_list[0]:
-                            delta1 = np.sqrt(n1/(n1-1))*(mags[i] - wmean1)/errs[i]
-                            delta2 = np.sqrt(n2/(n2-1))*(mags[i+1] - wmean2)/errs[i+1]
+                            delta1 = np.sqrt(n1/(n1-1))*(m[i] - wmean1)/e[i]
+                            delta2 = np.sqrt(n2/(n2-1))*(m[i+1] - wmean2)/e[i+1]
                         else:
-                            delta1 = np.sqrt(n2/(n2-1))*(mags[i] - wmean2)/errs[i]
-                            delta2 = np.sqrt(n1/(n1-1))*(mags[i+1] - wmean1)/errs[i+1]
+                            delta1 = np.sqrt(n2/(n2-1))*(m[i] - wmean2)/e[i]
+                            delta2 = np.sqrt(n1/(n1-1))*(m[i+1] - wmean1)/e[i+1]
+                        #print(np.sign(delta1*delta2))
                         P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                         skip_next = True
+                # Single obs
                 else:
                     if fils[i] == filter_list[0]:
-                        delta1 = np.sqrt(n1/(n1-1))*(mags[i] - wmean1)/errs[i]
+                        delta1 = np.sqrt(n1/(n1-1))*(m[i] - wmean1)/e[i]
                     else:
-                        delta1 = np.sqrt(n2/(n2-1))*(mags[i] - wmean2)/errs[i]
+                        delta1 = np.sqrt(n2/(n2-1))*(m[i] - wmean2)/e[i]
                     P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
                     skip_next = False
                 n_pairs += 1
