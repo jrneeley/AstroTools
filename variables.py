@@ -309,3 +309,325 @@ def find_variables(index='StetsonJ'):
     # compute variability index for each star
     for i in range(N):
         compute_variability_index(filters, mjds, mags, errs)
+
+
+# Classification script
+def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
+    rrd_fu=False, LAST_ID_FILE='classify_lastid.txt', band1='M1', band2='M2'):
+
+
+    # Load list of variables and types to check
+    dt = np.dtype([('id', int), ('type', (np.unicode_, 15)),
+        ('subtype', (np.unicode_,4)), ('period', float),
+        ('t0', float), ('mag1', float), ('mag2', float), ('amp1', float),
+        ('amp2', float), ('err1', float), ('err2', float)])
+    var_list = np.loadtxt(VAR_FILE, dtype=dt)
+
+    var_list2 = np.copy(var_list)
+
+    # Load photometry file
+    allstars = np.loadtxt(PHOT_FILE, usecols=(3,5,8),
+        dtype=np.dtype([('m1', float), ('m2', float), ('sharp', float)]))
+    sel = np.abs(allstars['sharp']) < 0.1
+
+    # Find index of last plotted variable
+    f = open(LASTID_FILE,'r')
+    last_id = f.read()
+    last_id_index = np.where(var_list['id'] == int(last_id[:-1]))
+    f.close()
+
+    # Find index of next variable to plot
+    plot_next_id = [0]
+    if star_id == 'First':
+        i = 0
+        plot_next_id = var_list['id'][i]
+    if star_id == 'Last':
+        i = -1
+        plot_next_id = var_list['id'][i]
+    if star_id == 'Same':
+        i = last_id_index[0]
+        plot_next_id = var_list['id'][i]
+    if star_id == 'Prev':
+        if last_id_index[0] == 0:
+            print('---> Last id already the first variable.')
+            return
+        else:
+            i = last_id_index[0]-1
+            plot_next_id = var_list['id'][i]
+
+    if star_id == 'Next':
+        if last_id_index[0] > n_vars-2:
+            print('---> Last id already the last variable.')
+            return
+        else:
+            i = last_id_index[0]+1
+            plot_next_id = var_list['id'][i]
+
+    if plot_next_id == [0]:
+        i = np.where(var_list['id'] == int(star_id))[0]
+
+    # Check that next variable to plot has valid id
+    if len(plot_next_id) == 0:
+        print('--->  Couldn\'t find varaible in list!')
+        return
+
+    # Print id of star being processed
+    print('---> Processing star id =',plot_next_id)
+    print('     ({}/{})'.format(i[0]+1, n_vars))
+    print('---> Current params: ', var_list[i])
+
+
+    # Load light curve
+    star = 'v{}'.format(plot_next_id[0])
+
+    try:
+        dt = np.dtype([('filt', int), ('mjd', float), ('mag', float), ('err', float)])
+        lcv = np.loadtxt('lcvs/'+star+'.fitlc', dtype=dt, skiprows=3,
+            usecols=(0,1,2,3))
+        fit = np.loadtxt('lcvs/'+star+'.fitlc_fit', dtype=([('phase', float),
+            ('mag1', float), ('mag2', float)]), skiprows=1)
+    except:
+        print('Light curve file doesn\'t exist for this star!')
+        return
+
+    # Initialize plot
+    fig = plt.figure(constrained_layout=True, figsize=(12,15))
+    gs = fig.add_gridspec(5,2)
+    ax1 = fig.add_subplot(gs[0,0])
+    ax2 = fig.add_subplot(gs[0,1])
+    ax3 = fig.add_subplot(gs[1,0])
+    ax4 = fig.add_subplot(gs[1,1])
+    ax5 = fig.add_subplot(gs[2,0])
+    ax6 = fig.add_subplot(gs[2,1])
+    ax7 = fig.add_subplot(gs[3,0])
+    ax8 = fig.add_subplot(gs[3,1])
+    ax9 = fig.add_subplot(gs[4,0])
+    ax10 = fig.add_subplot(gs[4,1])
+
+    # Plor color-magnitude diagram
+    ax1.scatter(allstars['m1'][sel]-allstars['m2'][sel], allstars['m2'][sel],
+        s=1, alpha=0.2, color='gray')
+    ax1.set_ylim(29,21)
+    ax1.set_xlim(-1,3)
+    ax1.set_xlabel('{} - {}'.format(band1, band2))
+    ax1.set_ylabel(band2)
+    color = var_list['mag1']-var_list['mag2']
+    mag = var_list['mag2']
+    ax1.scatter(color[i], mag[i], color='xkcd:red',s=40)
+    ax1.text(0.1, 0.95, var_list['id'][i],
+        transform=ax1.transAxes, color='xkcd:red')
+
+
+    # Plot Amplitude ratio
+    ax2.scatter(np.log10(var_list['period']),
+        var_list['b_amp1']/var_list['amp2'],
+        color='gray', alpha=0.5, s=10)
+    ax2.scatter(np.log10(var_list['period'][i]),
+        var_list['amp1'][i]/var_list['amp2'][i],
+        color='xkcd:red', s=40)
+    ax2.set_xlabel('$\log P$')
+    ax2.set_ylabel('Amp ratio')
+
+
+    # Plot Band1 PL
+    if plot_lmc == True:
+        print('Not ready to do this yet!')
+        return
+    else:
+        ax3.scatter(np.log10(var_list['period']), var_list['mag1'], s=10,
+            color='gray', alpha=0.5)
+    ax3.invert_yaxis()
+    ax3.set_ylabel(band1)
+    ax3.set_xlabel('$\log P$ [days]')
+    ax3.scatter(np.log10(var_list['period'][i]), var_list['mag1'][i],
+        s=40, color='xkcd:red')
+    ax3.text(0.1, 0.95, var_list['id'][i],
+        transform=ax3.transAxes, color='xkcd:red')
+
+    # Plot Band2 PL
+    if plot_lmc == True:
+        print('Not ready to do this yet!')
+        return
+    else:
+        ax4.scatter(np.log10(var_list['period']), var_list['mag2'], s=10,
+            color='gray', alpha=0.5)
+    ax4.scatter(np.log10(var_list2['period'][i]), var_list2['mag2'][i],
+        s=40, color='xkcd:red')
+    ax4.set_xlabel('$\log P$ [days]')
+    ax4.set_ylabel(band2)
+    ax4.invert_yaxis()
+
+
+    # Plot F475W period-amplitude diagram
+    ax5.scatter(var_list['period'], var_list['amp1'],
+        s=10, color='gray', alpha=0.5)
+    ax5.set_ylabel('Amplitude ({})'.format(band1))
+    ax5.set_xlabel('P [days]')
+    ax5.scatter(var_list['period'][i],
+        var_list['amp1'][i], s=40, color='xkcd:red')
+    ax5.text(0.1, 0.95, var_list['id'][i],
+        transform=ax5.transAxes, color='xkcd:red')
+    ax5.text(0.25, 0.945, var_type,
+        transform=ax5.transAxes, color='xkcd:orange')
+
+    # Plot F814W period-amplitude diagram
+    if plot_lmc == False:
+        ax6.scatter(var_list['period'], var_list['amp2'],
+            s=10, color='gray', alpha=0.5)
+    ax6.set_ylabel('Amplitude ({})'.format(band2))
+    ax6.set_xlabel('P [days]')
+    ax6.scatter(var_list['period'][i],
+        var_list['amp2'][i], s=40, color='xkcd:red')
+    ax6.text(0.1, 0.95, var_list['id'][i],
+        transform=ax6.transAxes, color='xkcd:red')
+
+    # Plot phased light curve
+    fil = lcv['filt'] == 0
+    phase = np.mod((lcv['mjd'][fil]-var_list['t0'][i])/var_list['period'][i],1)
+    phase = np.concatenate((phase, phase+1))
+    mag = np.tile(lcv['mag'][fil],2)
+    err = np.tile(lcv['err'][fil],2)
+    phase_fit = np.concatenate((fit['phase'], fit['phase']+1))
+    mag_fit = np.tile(fit['mag1'],2)
+    ax7.errorbar(phase, mag, yerr=err, fmt='.', color='xkcd:black')
+    ax7.plot(phase_fit, mag_fit, color='xkcd:black')
+    ax7.set_xlabel('Phase')
+    ax7.set_ylabel(band1)
+    ax7.invert_yaxis()
+
+
+    fil = lcv_clean['filt'] == 1
+    phase = np.mod((lcv['mjd'][fil]-var_list['t0'][i])/var_list['period'][i],1)
+    phase = np.concatenate((phase, phase+1))
+    mag = np.tile(lcv['mag'][fil],2)
+    err = np.tile(lcv['err'][fil],2)
+    phase_fit = np.concatenate((fit['phase'], fit['phase']+1))
+    mag_fit = np.tile(fit['mag2'],2)
+    ax8.errorbar(phase, mag, yerr=err, fmt='.', color='xkcd:black')
+    ax8.plot(phase_fit, mag_fit, color='xkcd:black')
+    ax8.set_xlabel('Phase')
+    ax8.set_ylabel(band2)
+    ax8.invert_yaxis()
+
+    # Show and close plot
+    plt.show()
+    plt.close()
+
+    # User input to change type, subtype, and parameters in file
+    if update == True:
+
+        old_type = var_list2['type'][i]
+        old_subtype = var_list2['subtype'][i]
+
+        new_type = input('New type:')
+        new_subtype = input('New subtype:')
+        print('---> Changing file...')
+
+        if new_type == '':
+            new_type = old_type
+            new_subtype = old_subtype
+
+        var_list2['type'][i] = new_type
+        var_list2['subtype'][i] = new_subtype
+
+        np.savetxt(VAR_FILE, data,
+            fmt='%7i %3s %4s %6.4f %12.6f %6.3f %6.3f %4.2f %4.2f %4.2f %4.2f')
+
+
+    # Save id of star that was processed
+    new_id = np.array_str(var_list['id'][i])
+    new_id_s = new_id[1:-1]
+    f = open(LASTID_FILE,'w')
+    f.write(new_id_s+'\n')
+    f.close()
+
+    return
+
+
+
+def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
+
+    t2cep_dir = '/Users/jill/Research/OGLE/OGLEIV/LMC/t2cep/'
+    acep_dir = '/Users/jill/Research/OGLE/OGLEIV/LMC/acep/'
+    ccep_dir = '/Users/jill/Research/OGLE/OGLEIV/LMC/ccep/'
+
+    dt = np.dtype([('i', float), ('v', float), ('p', float), ('amp', float)])
+    t2cep = np.loadtxt(t2cep_dir+'t2cep.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    afu = np.loadtxt(acep_dir+'acepF.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    afo = np.loadtxt(acep_dir+'acep1O.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    cfu = np.loadtxt(ccep_dir+'cepF.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    cfo = np.loadtxt(ccep_dir+'cep1O.dat.txt', usecols=(1,2,3,6), dtype=dt)
+
+    if period_cutoff != 0:
+        t2cep['p'][t2cep['p'] > period_cutoff] = np.nan
+        afo['p'][afo['p'] > period_cutoff] = np.nan
+        afu['p'][afu['p'] > period_cutoff] = np.nan
+        cfo['p'][cfo['p'] > period_cutoff] = np.nan
+        cfu['p'][cfu['p'] > period_cutoff] = np.nan
+    if axes == None:
+        fig1, ax1 = plt.subplots(1,1)
+        fig2, ax2 = plt.subplots(1,1)
+    else:
+        ax1 = axes[0]
+        ax2 = axes[1]
+    ax1.scatter(np.log10(t2cep['p']), t2cep['i']+offset, s=4, color='xkcd:steel blue', alpha=0.5)
+    ax1.scatter(np.log10(afo['p']), afo['i']+offset, s=4, color='xkcd:pale purple', alpha=0.5)
+    ax1.scatter(np.log10(afu['p']), afu['i']+offset, s=4, color='xkcd:rose', alpha=0.5)
+    ax1.scatter(np.log10(cfo['p']), cfo['i']+offset, s=1, color='xkcd:sage', alpha=0.5)
+    ax1.scatter(np.log10(cfu['p']), cfu['i']+offset, s=1, color='gray', alpha=0.5)
+
+    ax2.scatter(t2cep['p'], t2cep['amp'], s=4, color='xkcd:steel blue', alpha=0.5)
+    ax2.scatter(afo['p'], afo['amp'], s=4, color='xkcd:pale purple', alpha=0.5)
+    ax2.scatter(afu['p'], afu['amp'], s=4, color='xkcd:rose', alpha=0.5)
+    ax2.scatter(cfo['p'], cfo['amp'], s=4, color='xkcd:sage', alpha=0.5)
+    ax2.scatter(cfu['p'], cfu['amp'], s=4, color='xkcd:gray', alpha=0.5)
+
+    #ax.scatter(np.log10(jill['period']), jill['i_mag'])
+    if axes == None:
+        ax1.set_xlabel('$\log P$')
+        ax1.set_ylabel('I mag')
+        ax1.invert_yaxis()
+        ax2.set(xlabel='P [days]', ylabel='I amp')
+        plt.show()
+
+
+def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
+
+    rrl_dir = '/Users/jill/Research/OGLE/OGLEIV/LMC/rrl/'
+
+    dt = np.dtype([('i', float), ('v', float), ('p', float), ('amp', float)])
+
+    rrab = np.loadtxt(rrl_dir+'RRab.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    rrc = np.loadtxt(rrl_dir+'RRc.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    if rrd_fu == False:
+        rrd = np.loadtxt(rrl_dir+'RRd.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    else:
+        rrd = np.loadtxt(rrl_dir+'RRd.dat.txt', usecols=(1,2,11,14), dtype=dt)
+
+    rrab[rrab['i'] < 18] = np.nan
+    rrc[rrc['i'] < 18] = np.nan
+    rrd[rrd['i'] < 18] = np.nan
+    rrab[rrab['i'] > 20] = np.nan
+    rrc[rrc['i'] > 20] = np.nan
+    rrd[rrd['i'] > 20] = np.nan
+
+    if axes == None:
+        fig1, ax1 = plt.subplots(1,1)
+        fig2, ax2 = plt.subplots(1,1)
+    else:
+        ax1 = axes[0]
+        ax2 = axes[1]
+    ax1.scatter(np.log10(rrab['p']), rrab['i']+offset, s=1, color='xkcd:steel blue', alpha=0.5)
+    ax1.scatter(np.log10(rrc['p']), rrc['i']+offset, s=1, color='xkcd:rose', alpha=0.5)
+    ax1.scatter(np.log10(rrd['p']), rrd['i']+offset, s=1, color='xkcd:sage', alpha=0.5)
+
+    ax2.scatter(rrab['p'], rrab['amp'], s=1, color='xkcd:steel blue', alpha=0.5)
+    ax2.scatter(rrc['p'], rrc['amp'], s=1, color='xkcd:rose', alpha=0.5)
+    ax2.scatter(rrd['p'], rrd['amp'], s=1, color='xkcd:sage', alpha=0.5)
+
+    if axes == None:
+        ax1.set_xlabel('$\log P$')
+        ax1.set_ylabel('I mag')
+        ax1.invert_yaxis()
+        ax2.set(xlabel='P [days]', ylabel='I amp')
+        plt.show()
