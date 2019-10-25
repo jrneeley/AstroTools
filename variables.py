@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import sys
+sys.path.insert(0, '/home/jill/python/')
+import daophot_tools as dao
 
 def compute_variability_index(filters, mjds, mags, errs,
     statistic='WelchStetsonI', max_time=0.02):
@@ -312,8 +314,8 @@ def find_variables(index='StetsonJ'):
 
 
 # Classification script
-def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
-    rrd_fu=False, LAST_ID_FILE='classify_lastid.txt', band1='M1', band2='M2'):
+def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
+    rrd_fu=False, LASTID_FILE='classify_lastid.txt', band1='M1', band2='M2', DM=0):
 
 
     # Load list of variables and types to check
@@ -322,18 +324,17 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
         ('t0', float), ('mag1', float), ('mag2', float), ('amp1', float),
         ('amp2', float), ('err1', float), ('err2', float)])
     var_list = np.loadtxt(VAR_FILE, dtype=dt)
-
+    n_vars = len(var_list['id'])
     var_list2 = np.copy(var_list)
 
     # Load photometry file
-    allstars = np.loadtxt(PHOT_FILE, usecols=(3,5,8),
-        dtype=np.dtype([('m1', float), ('m2', float), ('sharp', float)]))
+    allstars = dao.read_dao.read_raw(PHOT_FILE, filters=['F475W', 'F814W'])
     sel = np.abs(allstars['sharp']) < 0.1
 
     # Find index of last plotted variable
     f = open(LASTID_FILE,'r')
     last_id = f.read()
-    last_id_index = np.where(var_list['id'] == int(last_id[:-1]))
+    last_id_index = np.argwhere(var_list['id'] == int(last_id[:-1]))[0]
     f.close()
 
     # Find index of next variable to plot
@@ -366,19 +367,15 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
     if plot_next_id == [0]:
         i = np.where(var_list['id'] == int(star_id))[0]
 
-    # Check that next variable to plot has valid id
-    if len(plot_next_id) == 0:
-        print('--->  Couldn\'t find varaible in list!')
-        return
 
     # Print id of star being processed
     print('---> Processing star id =',plot_next_id)
-    print('     ({}/{})'.format(i[0]+1, n_vars))
+    print('     ({}/{})'.format(i+1, n_vars))
     print('---> Current params: ', var_list[i])
 
 
     # Load light curve
-    star = 'v{}'.format(plot_next_id[0])
+    star = 'v{}'.format(plot_next_id)
 
     try:
         dt = np.dtype([('filt', int), ('mjd', float), ('mag', float), ('err', float)])
@@ -391,23 +388,23 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
         return
 
     # Initialize plot
-    fig = plt.figure(constrained_layout=True, figsize=(12,15))
-    gs = fig.add_gridspec(5,2)
-    ax1 = fig.add_subplot(gs[0,0])
-    ax2 = fig.add_subplot(gs[0,1])
-    ax3 = fig.add_subplot(gs[1,0])
-    ax4 = fig.add_subplot(gs[1,1])
-    ax5 = fig.add_subplot(gs[2,0])
-    ax6 = fig.add_subplot(gs[2,1])
-    ax7 = fig.add_subplot(gs[3,0])
-    ax8 = fig.add_subplot(gs[3,1])
-    ax9 = fig.add_subplot(gs[4,0])
-    ax10 = fig.add_subplot(gs[4,1])
+    fig, ax = plt.subplots(4,2,constrained_layout=True, figsize=(12,15))
+    ax1 = ax[0,0]
+    ax2 = ax[0,1]
+    ax3 = ax[1,0]
+    ax4 = ax[1,1]
+    ax5 = ax[2,0]
+    ax6 = ax[2,1]
+    ax7 = ax[3,0]
+    ax8 = ax[3,1]
+
 
     # Plor color-magnitude diagram
-    ax1.scatter(allstars['m1'][sel]-allstars['m2'][sel], allstars['m2'][sel],
-        s=1, alpha=0.2, color='gray')
-    ax1.set_ylim(29,21)
+    ax1.scatter(allstars['mags'][:,0][sel]-allstars['mags'][:,1][sel], allstars['mags'][:,1][sel],
+        s=1, alpha=0.5, color='gray')
+    ax1.scatter(var_list['mag1']-var_list['mag2'], var_list['mag2'], s=10, color='xkcd:blue')
+    #ax1.set_ylim(29,21)
+    ax1.invert_yaxis()
     ax1.set_xlim(-1,3)
     ax1.set_xlabel('{} - {}'.format(band1, band2))
     ax1.set_ylabel(band2)
@@ -420,7 +417,7 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
 
     # Plot Amplitude ratio
     ax2.scatter(np.log10(var_list['period']),
-        var_list['b_amp1']/var_list['amp2'],
+        var_list['amp1']/var_list['amp2'],
         color='gray', alpha=0.5, s=10)
     ax2.scatter(np.log10(var_list['period'][i]),
         var_list['amp1'][i]/var_list['amp2'][i],
@@ -430,12 +427,8 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
 
 
     # Plot Band1 PL
-    if plot_lmc == True:
-        print('Not ready to do this yet!')
-        return
-    else:
-        ax3.scatter(np.log10(var_list['period']), var_list['mag1'], s=10,
-            color='gray', alpha=0.5)
+    ax3.scatter(np.log10(var_list['period']), var_list['mag1'], s=10,
+        color='gray', alpha=0.5)
     ax3.invert_yaxis()
     ax3.set_ylabel(band1)
     ax3.set_xlabel('$\log P$ [days]')
@@ -446,8 +439,8 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
 
     # Plot Band2 PL
     if plot_lmc == True:
-        print('Not ready to do this yet!')
-        return
+        plot_lmc_rrl(axes=[ax4, ax6], offset=DM)
+        plot_lmc_cep(axes=[ax4, ax6], offset=DM)
     else:
         ax4.scatter(np.log10(var_list['period']), var_list['mag2'], s=10,
             color='gray', alpha=0.5)
@@ -467,8 +460,7 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
         var_list['amp1'][i], s=40, color='xkcd:red')
     ax5.text(0.1, 0.95, var_list['id'][i],
         transform=ax5.transAxes, color='xkcd:red')
-    ax5.text(0.25, 0.945, var_type,
-        transform=ax5.transAxes, color='xkcd:orange')
+
 
     # Plot F814W period-amplitude diagram
     if plot_lmc == False:
@@ -496,7 +488,7 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
     ax7.invert_yaxis()
 
 
-    fil = lcv_clean['filt'] == 1
+    fil = lcv['filt'] == 1
     phase = np.mod((lcv['mjd'][fil]-var_list['t0'][i])/var_list['period'][i],1)
     phase = np.concatenate((phase, phase+1))
     mag = np.tile(lcv['mag'][fil],2)
@@ -519,8 +511,8 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
         old_type = var_list2['type'][i]
         old_subtype = var_list2['subtype'][i]
 
-        new_type = input('New type:')
-        new_subtype = input('New subtype:')
+        new_type = raw_input('New type:')
+        new_subtype = raw_input('New subtype:')
         print('---> Changing file...')
 
         if new_type == '':
@@ -530,15 +522,15 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
         var_list2['type'][i] = new_type
         var_list2['subtype'][i] = new_subtype
 
-        np.savetxt(VAR_FILE, data,
+        np.savetxt(VAR_FILE, var_list2,
             fmt='%7i %3s %4s %6.4f %12.6f %6.3f %6.3f %4.2f %4.2f %4.2f %4.2f')
 
 
     # Save id of star that was processed
-    new_id = np.array_str(var_list['id'][i])
-    new_id_s = new_id[1:-1]
+    new_id = str(var_list['id'][i])
+    #new_id_s = new_id[1:-1]
     f = open(LASTID_FILE,'w')
-    f.write(new_id_s+'\n')
+    f.write(new_id+'\n')
     f.close()
 
     return
@@ -547,9 +539,9 @@ def classify_var(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
 
 def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
 
-    t2cep_dir = '/Users/jill/Research/OGLE/OGLEIV/LMC/t2cep/'
-    acep_dir = '/Users/jill/Research/OGLE/OGLEIV/LMC/acep/'
-    ccep_dir = '/Users/jill/Research/OGLE/OGLEIV/LMC/ccep/'
+    t2cep_dir = '/mnt/data/public/jill/OGLE/OGLEIV/LMC/t2cep/'
+    acep_dir = '/mnt/data/public/jill/OGLE/OGLEIV/LMC/acep/'
+    ccep_dir = '/mnt/data/public/jill/OGLE/OGLEIV/LMC/ccep/'
 
     dt = np.dtype([('i', float), ('v', float), ('p', float), ('amp', float)])
     t2cep = np.loadtxt(t2cep_dir+'t2cep.dat.txt', usecols=(1,2,3,6), dtype=dt)
@@ -570,17 +562,37 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
     else:
         ax1 = axes[0]
         ax2 = axes[1]
-    ax1.scatter(np.log10(t2cep['p']), t2cep['i']+offset, s=4, color='xkcd:steel blue', alpha=0.5)
-    ax1.scatter(np.log10(afo['p']), afo['i']+offset, s=4, color='xkcd:pale purple', alpha=0.5)
-    ax1.scatter(np.log10(afu['p']), afu['i']+offset, s=4, color='xkcd:rose', alpha=0.5)
-    ax1.scatter(np.log10(cfo['p']), cfo['i']+offset, s=1, color='xkcd:sage', alpha=0.5)
-    ax1.scatter(np.log10(cfu['p']), cfu['i']+offset, s=1, color='gray', alpha=0.5)
+
+    # classical cepheid lines
+    x_fo = np.array([-0.7, 1.0])
+    x_fu = np.array([-0.7, 1.7])
+    y_fo = -3.328*x_fo + 16.209 - 18.477 + offset
+    y_fu = -2.914*x_fu + 16.672 - 18.477 + offset
+    ax1.scatter(x_fo, y_fo, s=1, color='xkcd:sage')
+    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:gray')
+    ax1.fill_between(x_fo, y_fo-0.23, y_fo+0.23, color='xkcd:sage', alpha=0.4)
+    ax1.fill_between(x_fu, y_fu-0.21, y_fu+0.21, color='xkcd:gray', alpha=0.4)
+    # anomalous cepheid lines
+    x_fo = np.array([-0.5, 0.1])
+    x_fu = np.array([-0.4, 0.5])
+    y_fo = -3.302*x_fo + 16.656 - 18.477 + offset
+    y_fu = -2.962*x_fu + 17.368 - 18.477 + offset
+    ax1.scatter(x_fo, y_fo, s=1, color='xkcd:pale purple')
+    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:rose')
+    ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:pale purple', alpha=0.4)
+    ax1.fill_between(x_fu, y_fu-0.23, y_fu+0.23, color='xkcd:rose', alpha=0.4)
+    # type 2 cepheid line
+    x_fu = np.array([-0.1, 1.7])
+    y_fu = -2.033*x_fu + 18.015 - 18.477 + offset
+    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:steel blue')
+    ax1.fill_between(x_fu, y_fu-0.4, y_fu+0.4, color='xkcd:steel blue', alpha=0.4)
 
     ax2.scatter(t2cep['p'], t2cep['amp'], s=4, color='xkcd:steel blue', alpha=0.5)
     ax2.scatter(afo['p'], afo['amp'], s=4, color='xkcd:pale purple', alpha=0.5)
     ax2.scatter(afu['p'], afu['amp'], s=4, color='xkcd:rose', alpha=0.5)
     ax2.scatter(cfo['p'], cfo['amp'], s=4, color='xkcd:sage', alpha=0.5)
     ax2.scatter(cfu['p'], cfu['amp'], s=4, color='xkcd:gray', alpha=0.5)
+    ax2.set_xlim(0,3)
 
     #ax.scatter(np.log10(jill['period']), jill['i_mag'])
     if axes == None:
@@ -593,7 +605,7 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
 
 def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
 
-    rrl_dir = '/Users/jill/Research/OGLE/OGLEIV/LMC/rrl/'
+    rrl_dir = '/mnt/data/public/jill/OGLE/OGLEIV/LMC/rrl/'
 
     dt = np.dtype([('i', float), ('v', float), ('p', float), ('amp', float)])
 
@@ -617,13 +629,20 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
     else:
         ax1 = axes[0]
         ax2 = axes[1]
-    ax1.scatter(np.log10(rrab['p']), rrab['i']+offset, s=1, color='xkcd:steel blue', alpha=0.5)
-    ax1.scatter(np.log10(rrc['p']), rrc['i']+offset, s=1, color='xkcd:rose', alpha=0.5)
-    ax1.scatter(np.log10(rrd['p']), rrd['i']+offset, s=1, color='xkcd:sage', alpha=0.5)
 
-    ax2.scatter(rrab['p'], rrab['amp'], s=1, color='xkcd:steel blue', alpha=0.5)
-    ax2.scatter(rrc['p'], rrc['amp'], s=1, color='xkcd:rose', alpha=0.5)
-    ax2.scatter(rrd['p'], rrd['amp'], s=1, color='xkcd:sage', alpha=0.5)
+    x_fo = np.array([-0.7, -0.3])
+    x_fu = np.array([-0.5, 0.0])
+    y_fo = -1.946*x_fo + 17.784 - 18.477 + offset
+    y_fu = -1.894*x_fu + 18.169 - 18.477 + offset
+    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:puce')
+    ax1.scatter(x_fo, y_fo, s=1, color='xkcd:eggplant')
+    ax1.fill_between(x_fu, y_fu-0.2, y_fu+0.2, color='xkcd:puce', alpha=0.5)
+    ax1.fill_between(x_fo, y_fo-0.2, y_fo+0.2, color='xkcd:eggplant', alpha=0.5)
+
+
+    ax2.scatter(rrab['p'], rrab['amp'], s=1, color='xkcd:puce', alpha=0.5)
+    ax2.scatter(rrc['p'], rrc['amp'], s=1, color='xkcd:eggplant', alpha=0.5)
+    #ax2.scatter(rrd['p'], rrd['amp'], s=1, color='xkcd:sage', alpha=0.5)
 
     if axes == None:
         ax1.set_xlabel('$\log P$')
