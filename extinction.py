@@ -64,10 +64,12 @@ def cardelli(wave, Rv=3.1, extend=False, verbose=0, output='Ax/Av'):
 
         elif use == 'fail':
 
-            if verbose == 1: print 'Outside allowed wavelength range of Cardelli Law.'
+            if verbose == 1:
+                print('Outside allowed wavelength range of Cardelli Law.')
             ratio[ii] = np.nan
 
-        if verbose == 1: print 'Ax/Av = {:.3f} for x = {:.3f}'.format(ratio[ii], wave[ii])
+        if verbose == 1:
+            print('Ax/Av = {:.3f} for x = {:.3f}'.format(ratio[ii], wave[ii]))
 
     if output == 'Ax/Av': return ratio
     if output == 'Ax/ebv': return ratio*Rv
@@ -136,10 +138,10 @@ def cardelli_odonnell(wave, Rv=3.1, extend=False, verbose=0, output='Ax/Av'):
 
         elif use == 'fail':
 
-            if verbose == 1: print 'Outside allowed wavelength range of Cardelli Law.'
+            if verbose == 1: print('Outside allowed wavelength range of Cardelli Law.')
             ratio[ii] = np.nan
 
-        if verbose == 1: print 'Ax/Av = {:.3f} for x = {:.3f}'.format(ratio[ii], wave[ii])
+        if verbose == 1: print('Ax/Av = {:.3f} for x = {:.3f}'.format(ratio[ii], wave[ii]))
 
     if output == 'Ax/Av': return ratio
     if output == 'Ax/ebv': return ratio*Rv
@@ -151,6 +153,7 @@ def get_ext_ratio(band, Rv=3.1, red_law='Cardelli', verbose=0, output='Ax/Av'):
     if np.isscalar(band): band = np.array([band])
     N = len(band)
     R = np.zeros(N)
+    wave = np.zeros(N)
 
     named_opt_bands = np.array([
         'U', 'B', 'V', 'R', 'I',
@@ -182,44 +185,44 @@ def get_ext_ratio(band, Rv=3.1, red_law='Cardelli', verbose=0, output='Ax/Av'):
 
         if np.isin(band[ii], named_mir_bands):
 
-            wave = mir_waves[np.where(named_mir_bands == band[ii])]
+            wave[ii] = mir_waves[np.where(named_mir_bands == band[ii])]
             if (red_law == 'Cardelli') | (red_law == 'ODonnell'):
                 ak = cardelli(2.159, Rv=Rv, output='Ax/Av')
-                R[ii] = indebetouw(wave, Ak_Av=ak)
+                R[ii] = indebetouw(wave[ii], Ak_Av=ak)
 
             elif red_law == 'Fitzpatrick':
                 ak = fitzpatrick(2.159, R=Rv, output='Ax/Av')
-                R[ii] = indebetouw(wave, Ak_Av=ak)
+                R[ii] = indebetouw(wave[ii], Ak_Av=ak)
 
             else:
-                print 'ERROR! Unsupported reddening law.'
+                print('ERROR! Unsupported reddening law.')
                 R[ii] = np.nan
 
         elif np.isin(band[ii], named_opt_bands):
 
-            wave = opt_waves[np.where(named_opt_bands == band[ii])]
+            wave[ii] = opt_waves[np.where(named_opt_bands == band[ii])]
 
             if red_law == 'Cardelli':
-                R[ii] = cardelli(wave, Rv=Rv, output='Ax/Av')
+                R[ii] = cardelli(wave[ii], Rv=Rv, output='Ax/Av')
             elif red_law == 'ODonnell':
-                R[ii] = cardelli_odonnell(wave, Rv=Rv, output='Ax/Av')
+                R[ii] = cardelli_odonnell(wave[ii], Rv=Rv, output='Ax/Av')
             elif red_law == 'Fitzpatrick':
-                R[ii] = fitzpatrick(wave, R=Rv, output='Ax/Av')
+                R[ii] = fitzpatrick(wave[ii], R=Rv, output='Ax/Av')
             else:
-                print 'ERROR! Unsupported reddening law.'
+                print('ERROR! Unsupported reddening law.')
                 R[ii] = np.nan
         else:
-            print 'ERROR! Band not currently supported.'
+            print('ERROR! Band not currently supported.')
             R[ii] = np.nan
 
         if output == 'Ax/ebv': R[ii] *= Rv
         if verbose == 1:
             if output == 'Ax/Av':
-                print 'A({})/Av = {:.3f};  lamb = {}'.format(band[ii], R[ii], wave)
+                print('A({})/Av = {:.3f};  lamb = {}'.format(band[ii], R[ii], wave[ii]))
             if output == 'Ax/ebv':
-                print 'A({})/E(B-V) = {:.3f};  lamb = {}'.format(band[ii], R[ii], wave)
+                print('A({})/E(B-V) = {:.3f};  lamb = {}'.format(band[ii], R[ii], wave[ii]))
 
-    return R
+    return R, wave
 
 
 
@@ -291,7 +294,7 @@ def fitzpatrick(wave, R=3.1, fixed=0, verbose=0, output='Ax/ebv'):
                 tck = interpolate.splrep(x_anchor, y_anchor, s=0)
                 R_new[ii] = interpolate.splev(x[ii], tck, der=0)
 
-        if verbose == 1: print 'Ax/ebv = {:.3f} for x = {:.3f}'.format(R_new[ii], wave[ii])
+        if verbose == 1: print('Ax/ebv = {:.3f} for x = {:.3f}'.format(R_new[ii], wave[ii]))
     if output == 'Ax/ebv': return R_new
     if output == 'Ax/Av': return R_new/R
 

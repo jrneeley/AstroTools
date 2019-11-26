@@ -127,4 +127,4 @@ def hst_wfc2ground_synthetic(mag1, mag2, hst_band1, hst_band2, mag='vega'):
 
 def hst_wfc2ground_observed():
     # Do same as above for observed transformations
-    print ' I don\'t do anything yet.'
+    print(' I don\'t do anything yet.')

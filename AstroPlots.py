@@ -56,7 +56,7 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
         Z_new = np.sqrt(Z)
         ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
     else:
-        print 'Invalid color scale. Choose from: linear, log, arcsinh, sqrt'
+        print('Invalid color scale. Choose from: linear, log, arcsinh, sqrt')
         sys.exit()
     # Flip y axis for CMD
     ax.set_ylim(ylim[1],ylim[0])
@@ -68,7 +68,7 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     #    plt.show()
     #else:
     if save_as != 'None':
-        print 'Saving CMD to file...'
+        print('Saving CMD to file...')
         plt.savefig(save_as, format='pdf')
 
 def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
@@ -126,14 +126,14 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
         Z_new = np.sqrt(Z)
         ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
     else:
-        print 'Invalid color scale. Choose from: linear, log, arcsinh, sqrt'
+        print('Invalid color scale. Choose from: linear, log, arcsinh, sqrt')
         sys.exit()
 
     if (plt_axes == False) & (save_as == 'None'):
         plt.show()
 
     if save_as != 'None':
-        print 'Saving CMD to file...'
+        print('Saving CMD to file...')
         plt.savefig(save_as, format='pdf')
 
 

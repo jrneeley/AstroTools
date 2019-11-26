@@ -1,8 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(0, '/home/jill/python/')
-import daophot_tools as dao
+#sys.path.insert(0, '/Users/jill/python/')
+#import daophot_tools as dao
+import config
+from astropy.io import fits
+from matplotlib.colors import LogNorm
+
+np.warnings.filterwarnings('ignore')
 
 def compute_variability_index(filters, mjds, mags, errs,
     statistic='WelchStetsonI', max_time=0.02):
@@ -315,26 +320,31 @@ def find_variables(index='StetsonJ'):
 
 # Classification script
 def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
-    rrd_fu=False, LASTID_FILE='classify_lastid.txt', band1='M1', band2='M2', DM=0):
+    rrd_fu=False, LASTID_FILE='lastid.txt', band1='M1', band2='M2',
+    DM=0, cep=True, rrl=True, image=False, xoff=0, yoff=0):
 
 
     # Load list of variables and types to check
-    dt = np.dtype([('id', int), ('type', (np.unicode_, 15)),
-        ('subtype', (np.unicode_,4)), ('period', float),
-        ('t0', float), ('mag1', float), ('mag2', float), ('amp1', float),
-        ('amp2', float), ('err1', float), ('err2', float)])
+    dt = np.dtype([('id', 'U8'), ('cat_id', int), ('type', 'U4'),
+        ('subtype', 'U4'), ('period', float),
+        ('t0', float), ('mag1', float), ('err1', float), ('amp1', float),
+        ('mag2', float), ('err2', float), ('amp2', float)])
     var_list = np.loadtxt(VAR_FILE, dtype=dt)
     n_vars = len(var_list['id'])
     var_list2 = np.copy(var_list)
 
     # Load photometry file
-    allstars = dao.read_dao.read_raw(PHOT_FILE, filters=['F475W', 'F814W'])
-    sel = np.abs(allstars['sharp']) < 0.1
+    dt = np.dtype([('id', int), ('mag1', float), ('mag2', float),
+        ('sharp', float)])
+    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,6,10), skiprows=3)
+    sel = np.abs(allstars['sharp']) < 1.0
+    allstars['mag1'][allstars['mag1'] > 90] = np.nan
+    allstars['mag2'][allstars['mag2'] > 90] = np.nan
 
     # Find index of last plotted variable
     f = open(LASTID_FILE,'r')
     last_id = f.read()
-    last_id_index = np.argwhere(var_list['id'] == int(last_id[:-1]))[0]
+    last_id_index = np.argwhere(var_list['id'] == last_id[:-1])[0]
     f.close()
 
     # Find index of next variable to plot
@@ -375,13 +385,13 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
 
     # Load light curve
-    star = 'v{}'.format(plot_next_id)
+    star = '{}'.format(plot_next_id)
 
     try:
         dt = np.dtype([('filt', int), ('mjd', float), ('mag', float), ('err', float)])
-        lcv = np.loadtxt('lcvs/'+star+'.fitlc', dtype=dt, skiprows=3,
+        lcv = np.loadtxt('lcvs/v_'+star+'.lcv', dtype=dt, skiprows=3,
             usecols=(0,1,2,3))
-        fit = np.loadtxt('lcvs/'+star+'.fitlc_fit', dtype=([('phase', float),
+        fit = np.loadtxt('lcvs/v_'+star+'.fit', dtype=([('phase', float),
             ('mag1', float), ('mag2', float)]), skiprows=1)
     except:
         print('Light curve file doesn\'t exist for this star!')
@@ -400,30 +410,23 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
 
     # Plor color-magnitude diagram
-    ax1.scatter(allstars['mags'][:,0][sel]-allstars['mags'][:,1][sel], allstars['mags'][:,1][sel],
+    ax1.scatter(allstars['mag1']-allstars['mag2'], allstars['mag2'],
         s=1, alpha=0.5, color='gray')
     ax1.scatter(var_list['mag1']-var_list['mag2'], var_list['mag2'], s=10, color='xkcd:blue')
     #ax1.set_ylim(29,21)
     ax1.invert_yaxis()
-    ax1.set_xlim(-1,3)
+    ax1.set_xlim(-2,4)
     ax1.set_xlabel('{} - {}'.format(band1, band2))
     ax1.set_ylabel(band2)
     color = var_list['mag1']-var_list['mag2']
     mag = var_list['mag2']
     ax1.scatter(color[i], mag[i], color='xkcd:red',s=40)
-    ax1.text(0.1, 0.95, var_list['id'][i],
+    ax1.text(0.1, 0.95, 'V'+star,
         transform=ax1.transAxes, color='xkcd:red')
 
-
-    # Plot Amplitude ratio
-    ax2.scatter(np.log10(var_list['period']),
-        var_list['amp1']/var_list['amp2'],
-        color='gray', alpha=0.5, s=10)
-    ax2.scatter(np.log10(var_list['period'][i]),
-        var_list['amp1'][i]/var_list['amp2'][i],
-        color='xkcd:red', s=40)
-    ax2.set_xlabel('$\log P$')
-    ax2.set_ylabel('Amp ratio')
+    if image != False:
+        plot_region(var_list['cat_id'][i], PHOT_FILE, image, axes=ax2,
+            xoff=xoff, yoff=yoff)
 
 
     # Plot Band1 PL
@@ -434,13 +437,15 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     ax3.set_xlabel('$\log P$ [days]')
     ax3.scatter(np.log10(var_list['period'][i]), var_list['mag1'][i],
         s=40, color='xkcd:red')
-    ax3.text(0.1, 0.95, var_list['id'][i],
+    ax3.text(0.1, 0.95, 'V'+star,
         transform=ax3.transAxes, color='xkcd:red')
 
     # Plot Band2 PL
     if plot_lmc == True:
-        plot_lmc_rrl(axes=[ax4, ax6], offset=DM)
-        plot_lmc_cep(axes=[ax4, ax6], offset=DM)
+        if rrl == True:
+            plot_lmc_rrl(axes=[ax4, ax6], offset=DM)
+        if cep == True:
+            plot_lmc_cep(axes=[ax4, ax6], offset=DM)
     else:
         ax4.scatter(np.log10(var_list['period']), var_list['mag2'], s=10,
             color='gray', alpha=0.5)
@@ -451,7 +456,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     ax4.invert_yaxis()
 
 
-    # Plot F475W period-amplitude diagram
+    # Plot mag1 period-amplitude diagram
     ax5.scatter(var_list['period'], var_list['amp1'],
         s=10, color='gray', alpha=0.5)
     ax5.set_ylabel('Amplitude ({})'.format(band1))
@@ -462,16 +467,26 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         transform=ax5.transAxes, color='xkcd:red')
 
 
+    # Plot Amplitude ratio
+    ax6.scatter(np.log10(var_list['period']),
+        var_list['amp1']/var_list['amp2'],
+        color='gray', alpha=0.5, s=10)
+    ax6.scatter(np.log10(var_list['period'][i]),
+        var_list['amp1'][i]/var_list['amp2'][i],
+        color='xkcd:red', s=40)
+    ax6.set_xlabel('$\log P$')
+    ax6.set_ylabel('Amp ratio')
+
     # Plot F814W period-amplitude diagram
-    if plot_lmc == False:
-        ax6.scatter(var_list['period'], var_list['amp2'],
-            s=10, color='gray', alpha=0.5)
-    ax6.set_ylabel('Amplitude ({})'.format(band2))
-    ax6.set_xlabel('P [days]')
-    ax6.scatter(var_list['period'][i],
-        var_list['amp2'][i], s=40, color='xkcd:red')
-    ax6.text(0.1, 0.95, var_list['id'][i],
-        transform=ax6.transAxes, color='xkcd:red')
+    #if plot_lmc == False:
+    #    ax6.scatter(var_list['period'], var_list['amp2'],
+    #        s=10, color='gray', alpha=0.5)
+    #ax6.set_ylabel('Amplitude ({})'.format(band2))
+    #ax6.set_xlabel('P [days]')
+    #ax6.scatter(var_list['period'][i],
+    #    var_list['amp2'][i], s=40, color='xkcd:red')
+    #ax6.text(0.1, 0.95, var_list['id'][i],
+    #    transform=ax6.transAxes, color='xkcd:red')
 
     # Plot phased light curve
     fil = lcv['filt'] == 0
@@ -501,6 +516,11 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     ax8.set_ylabel(band2)
     ax8.invert_yaxis()
 
+
+    #if image != False:
+    #    fig2, ax9 = plt.subplots(1,1)
+    #    plot_region(var_list['cat_id'][i], PHOT_FILE, image, axes=ax9, xoff=xoff, yoff=yoff)
+
     # Show and close plot
     plt.show()
     plt.close()
@@ -528,7 +548,6 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     # Save id of star that was processed
     new_id = str(var_list['id'][i])
-    #new_id_s = new_id[1:-1]
     f = open(LASTID_FILE,'w')
     f.write(new_id+'\n')
     f.close()
@@ -539,9 +558,9 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
 def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
 
-    t2cep_dir = '/mnt/data/public/jill/OGLE/OGLEIV/LMC/t2cep/'
-    acep_dir = '/mnt/data/public/jill/OGLE/OGLEIV/LMC/acep/'
-    ccep_dir = '/mnt/data/public/jill/OGLE/OGLEIV/LMC/ccep/'
+    t2cep_dir = ogle_dir+'LMC/t2cep/'
+    acep_dir = ogle_dir+'LMC/acep/'
+    ccep_dir = ogle_dir+'LMC/ccep/'
 
     dt = np.dtype([('i', float), ('v', float), ('p', float), ('amp', float)])
     t2cep = np.loadtxt(t2cep_dir+'t2cep.dat.txt', usecols=(1,2,3,6), dtype=dt)
@@ -605,7 +624,7 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
 
 def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
 
-    rrl_dir = '/mnt/data/public/jill/OGLE/OGLEIV/LMC/rrl/'
+    rrl_dir = ogle_dir+'LMC/rrl/'
 
     dt = np.dtype([('i', float), ('v', float), ('p', float), ('amp', float)])
 
@@ -650,3 +669,35 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
         ax1.invert_yaxis()
         ax2.set(xlabel='P [days]', ylabel='I amp')
         plt.show()
+
+def plot_region(star, star_list, image, ext=0, axes=None, xoff=0, yoff=0):
+
+    image_data = fits.getdata(image, ext=ext)
+
+    dt = np.dtype([('id', int), ('x', float), ('y', float)])
+    var_list = np.loadtxt(star_list, dtype=dt, usecols=(0,1,2), skiprows=3)
+
+    x_all = var_list['x'] - (xoff+1)
+    y_all = var_list['y'] - (yoff+1)
+
+    match = var_list['id'] == int(star)
+    x = x_all[match][0]
+    y = y_all[match][0]
+
+    if axes == None:
+        fig, ax = plt.subplots(1,1, figsize=(8,5))
+    else:
+        ax = axes
+
+    image_data[image_data > 1e14] = np.nan
+    image_data[image_data > 500] = 500
+    ax.imshow(image_data+150, cmap='gray', norm=LogNorm())
+    #plt.colorbar(cb)
+
+    ax.set_aspect('equal')
+    ax.plot(x, y, marker='o', color='red')
+    ax.scatter(x_all, y_all, marker='x', color='green')
+    ax.set_xlim(x-20, x+20)
+    ax.set_ylim(y-20, y+20)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')

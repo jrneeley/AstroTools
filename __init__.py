@@ -1,5 +1,7 @@
-import AstroPlots
-import extinction
-import filter_transformations
-import rrlyrae
-import variables
+from . import coordinates
+from . import config
+from . import AstroPlots
+from . import extinction
+from . import filter_transformations
+from . import rrlyrae
+from . import variables
