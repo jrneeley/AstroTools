@@ -326,7 +326,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
 
     # Load list of variables and types to check
-    dt = np.dtype([('id', 'U8'), ('cat_id', int), ('type', 'U4'),
+    dt = np.dtype([('id', int), ('cat_id', int), ('type', 'U4'),
         ('subtype', 'U4'), ('period', float),
         ('t0', float), ('mag1', float), ('err1', float), ('amp1', float),
         ('mag2', float), ('err2', float), ('amp2', float)])
@@ -345,6 +345,8 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     # Find index of last plotted variable
     f = open(LASTID_FILE,'r')
     last_id = f.read()
+    #print(last_id[:-1])
+    #print(var_list['cat_id'])
     last_id_index = np.argwhere(var_list['cat_id'] == int(last_id[:-1]))[0]
     f.close()
     ### TO DO: fails if last id is not in variable list. Fix this
@@ -541,8 +543,8 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         old_type = var_list2['type'][i]
         old_subtype = var_list2['subtype'][i]
 
-        new_type = raw_input('New type:')
-        new_subtype = raw_input('New subtype:')
+        new_type = input('New type:')
+        new_subtype = input('New subtype:')
         print('---> Changing file...')
 
         if new_type == '':
@@ -553,7 +555,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         var_list2['subtype'][i] = new_subtype
 
         np.savetxt(VAR_FILE, var_list2,
-            fmt='%7i %3s %4s %6.4f %12.6f %6.3f %6.3f %4.2f %4.2f %4.2f %4.2f')
+            fmt=' %7i %7i %3s %3s %7.5f %12.6f %6.3f %5.2f %4.2f %6.3f %5.3f %4.2f')
 
 
     # Save id of star that was processed
