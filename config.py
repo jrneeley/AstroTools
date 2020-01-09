@@ -1,1 +1,1 @@
-ogle_dir = '/Users/jill/Research/OGLE/OGLEIV/'
+ogle_dir = '/mnt/data/public/jill/OGLE/OGLEIV/'

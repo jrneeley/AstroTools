@@ -7,6 +7,7 @@ from . import config
 from astropy.io import fits
 from matplotlib.colors import LogNorm
 from matplotlib.patches import Circle
+from astropy.visualization import LogStretch, ImageNormalize, PercentileInterval
 
 np.warnings.filterwarnings('ignore')
 
@@ -322,7 +323,8 @@ def find_variables(index='StetsonJ'):
 # Classification script
 def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
     rrd_fu=False, LASTID_FILE='lastid.txt', band1='M1', band2='M2',
-    DM=0, cep=True, rrl=True, image=False, xoff=0, yoff=0):
+    DM=0, cep=True, rrl=True, image=False, xoff=0, yoff=0, lcv_dir='lcvs/fitlc/',
+    img_limits=[0,500]):
 
 
     # Load list of variables and types to check
@@ -333,11 +335,13 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     var_list = np.loadtxt(VAR_FILE, dtype=dt)
     n_vars = len(var_list['id'])
     var_list2 = np.copy(var_list)
+    vari = var_list['type'] != 'NV'
 
     # Load photometry file
     dt = np.dtype([('id', int), ('mag1', float), ('mag2', float),
         ('sharp', float)])
-    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,10))
+    #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,10))
+    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
     sel = np.abs(allstars['sharp']) < 0.25
     allstars['mag1'][allstars['mag1'] > 90] = np.nan
     allstars['mag2'][allstars['mag2'] > 90] = np.nan
@@ -345,41 +349,40 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     # Find index of last plotted variable
     f = open(LASTID_FILE,'r')
     last_id = f.read()
-    #print(last_id[:-1])
-    #print(var_list['cat_id'])
-    last_id_index = np.argwhere(var_list['cat_id'] == int(last_id[:-1]))[0]
+    last_id_index = np.argwhere(var_list['id'] == int(last_id[:-1]))[0]
     f.close()
     ### TO DO: fails if last id is not in variable list. Fix this
 
     # Find index of next variable to plot
-    plot_next_id = [0]
+    #plot_next_id = [0]
     if star_id == 'First':
         i = 0
-        plot_next_id = var_list['cat_id'][i]
-    if star_id == 'Last':
+        plot_next_id = var_list['id'][i]
+    elif star_id == 'Last':
         i = -1
-        plot_next_id = var_list['cat_id'][i]
-    if star_id == 'Same':
+        plot_next_id = var_list['id'][i]
+    elif star_id == 'Same':
         i = last_id_index[0]
-        plot_next_id = var_list['cat_id'][i]
-    if star_id == 'Prev':
+        plot_next_id = var_list['id'][i]
+    elif star_id == 'Prev':
         if last_id_index[0] == 0:
             print('---> Last id already the first variable.')
             return
         else:
             i = last_id_index[0]-1
-            plot_next_id = var_list['cat_id'][i]
+            plot_next_id = var_list['id'][i]
 
-    if star_id == 'Next':
+    elif star_id == 'Next':
         if last_id_index[0] > n_vars-2:
             print('---> Last id already the last variable.')
             return
         else:
             i = last_id_index[0]+1
-            plot_next_id = var_list['cat_id'][i]
+            plot_next_id = var_list['id'][i]
 
-    if plot_next_id == [0]:
-        i = np.where(var_list['cat_id'] == int(star_id))[0]
+    else:
+        i = np.argwhere(var_list['id'] == int(star_id))[0]
+        plot_next_id = var_list['id'][i][0]
 
 
     # Print id of star being processed
@@ -392,17 +395,20 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     star = '{}'.format(plot_next_id)
 
     try:
-        dt = np.dtype([('filt', int), ('mjd', float), ('mag', float), ('err', float)])
-        lcv = np.loadtxt('lcvs/v'+star+'.fitlc', dtype=dt, skiprows=3,
+        dt = np.dtype([('filt', 'U5'), ('mjd', float), ('mag', float), ('err', float)])
+        lcv = np.loadtxt('lcvs/c'+star+'.lcv', dtype=dt, skiprows=3,
             usecols=(0,1,2,3))
-        fit = np.loadtxt('lcvs/v'+star+'.fitlc_fit', dtype=([('phase', float),
+        dt = np.dtype([('filt', int), ('mjd', float), ('mag', float), ('err', float)])
+        lcv_clean = np.loadtxt(lcv_dir+'c'+star+'.fitlc', dtype=dt, skiprows=3,
+            usecols=(0,1,2,3))
+        fit = np.loadtxt(lcv_dir+'c'+star+'.fitlc_fit', dtype=([('phase', float),
             ('mag1', float), ('mag2', float)]), skiprows=1)
     except:
         print('Light curve file doesn\'t exist for this star!')
         return
 
     # Initialize plot
-    fig, ax = plt.subplots(4,2,constrained_layout=True, figsize=(12,15))
+    fig, ax = plt.subplots(6,2,constrained_layout=True, figsize=(12,18))
     ax1 = ax[0,0]
     ax2 = ax[0,1]
     ax3 = ax[1,0]
@@ -411,12 +417,18 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     ax6 = ax[2,1]
     ax7 = ax[3,0]
     ax8 = ax[3,1]
-
+    gs1 = ax[4,0].get_gridspec()
+    for axis in ax[4,:]: axis.remove()
+    axbig1 = fig.add_subplot(gs1[4,:])
+    gs2 = ax[5,0].get_gridspec()
+    for axis in ax[5,:]: axis.remove()
+    axbig2 = fig.add_subplot(gs2[5,:])
 
     # Plor color-magnitude diagram
     ax1.scatter(allstars['mag1'][sel]-allstars['mag2'][sel], allstars['mag2'][sel],
         s=1, alpha=0.5, color='gray')
-    ax1.scatter(var_list['mag1']-var_list['mag2'], var_list['mag2'], s=10, color='xkcd:blue')
+    ax1.scatter(var_list['mag1'][vari]-var_list['mag2'][vari],
+        var_list['mag2'][vari], s=10, color='xkcd:blue')
     #ax1.set_ylim(29,21)
     ax1.invert_yaxis()
     ax1.set_xlim(-2,4)
@@ -430,12 +442,15 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     if image != False:
         plot_region(var_list['cat_id'][i], PHOT_FILE, image, axes=ax2,
-            xoff=xoff, yoff=yoff)
+            xoff=xoff, yoff=yoff, aperture=10, img_limits=img_limits)
 
 
     # Plot Band1 PL
-    ax3.scatter(np.log10(var_list['period']), var_list['mag1'], s=10,
-        color='gray', alpha=0.5)
+    # ignore NV and EB stars
+    vclean = (var_list['type'] != 'BIN') & (var_list['type'] != 'NV') & \
+        (var_list['type'] != 'LPV')
+    ax3.scatter(np.log10(var_list['period'][vclean]), var_list['mag1'][vclean],
+        s=10, color='gray', alpha=0.5)
     ax3.invert_yaxis()
     ax3.set_ylabel(band1)
     ax3.set_xlabel('$\log P$ [days]')
@@ -450,33 +465,35 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
             plot_lmc_rrl(axes=[ax4, ax6], offset=DM)
         if cep == True:
             plot_lmc_cep(axes=[ax4, ax6], offset=DM)
-        ax4.scatter(np.log10(var_list['period']), var_list['mag2'], s=10,
+        ax4.scatter(np.log10(var_list['period'][vclean]), var_list['mag2'][vclean], s=10,
             color='gray', alpha=0.5)
     else:
-        ax4.scatter(np.log10(var_list['period']), var_list['mag2'], s=10,
+        ax4.scatter(np.log10(var_list['period'][vclean]), var_list['mag2'][vclean], s=10,
             color='gray', alpha=0.5)
     ax4.scatter(np.log10(var_list2['period'][i]), var_list2['mag2'][i],
         s=40, color='xkcd:red')
     ax4.set_xlabel('$\log P$ [days]')
     ax4.set_ylabel(band2)
+    ax4.set_xlim(ax3.get_xlim())
     ax4.invert_yaxis()
 
 
     # Plot mag1 period-amplitude diagram
-    ax5.scatter(var_list['period'], var_list['amp1'],
+    ax5.scatter(var_list['period'][vclean], var_list['amp1'][vclean],
         s=10, color='gray', alpha=0.5)
     ax5.set_ylabel('Amplitude ({})'.format(band1))
     ax5.set_xlabel('P [days]')
     ax5.scatter(var_list['period'][i],
         var_list['amp1'][i], s=40, color='xkcd:red')
-    ax5.text(0.1, 0.95, var_list['id'][i],
+    ax5.text(0.1, 0.95, 'V'+star,
         transform=ax5.transAxes, color='xkcd:red')
+    ax5.set_xlim(0,2)
 
 
     if plot_lmc == False:
         # Plot Amplitude ratio
-        ax6.scatter(np.log10(var_list['period']),
-            var_list['amp1']/var_list['amp2'],
+        ax6.scatter(np.log10(var_list['period'][vclean]),
+            var_list['amp1'][vclean]/var_list['amp2'][vclean],
             color='gray', alpha=0.5, s=10)
         ax6.scatter(np.log10(var_list['period'][i]),
             var_list['amp1'][i]/var_list['amp2'][i],
@@ -489,49 +506,83 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         ax6.set_ylabel('Amplitude ({})'.format(band2))
         ax6.set_xlabel('P [days]')
 
-    # Plot F814W period-amplitude diagram
-    #if plot_lmc == False:
-    #    ax6.scatter(var_list['period'], var_list['amp2'],
-    #        s=10, color='gray', alpha=0.5)
-    #ax6.set_ylabel('Amplitude ({})'.format(band2))
-    #ax6.set_xlabel('P [days]')
-    #ax6.scatter(var_list['period'][i],
-    #    var_list['amp2'][i], s=40, color='xkcd:red')
-    #ax6.text(0.1, 0.95, var_list['id'][i],
-    #    transform=ax6.transAxes, color='xkcd:red')
 
     # Plot phased light curve
-    fil = lcv['filt'] == 0
-    phase = np.mod((lcv['mjd'][fil]-var_list['t0'][i])/var_list['period'][i],1)
+    filt = lcv['filt'] == band1
+    phase = np.mod((lcv['mjd'][filt]-var_list['t0'][i])/var_list['period'][i],1)
+    phase_all = np.concatenate((phase, phase+1))
+    mag_all = np.tile(lcv['mag'][filt],2)
+    err_all = np.tile(lcv['err'][filt],2)
+    ax7.errorbar(phase_all, mag_all, yerr=err_all, fmt='.', color='xkcd:gray')
+
+    fil = lcv_clean['filt'] == 0
+    phase = np.mod((lcv_clean['mjd'][fil]-var_list['t0'][i])/var_list['period'][i],1)
     phase = np.concatenate((phase, phase+1))
-    mag = np.tile(lcv['mag'][fil],2)
-    err = np.tile(lcv['err'][fil],2)
+    mag = np.tile(lcv_clean['mag'][fil],2)
+    err = np.tile(lcv_clean['err'][fil],2)
     phase_fit = np.concatenate((fit['phase'], fit['phase']+1))
     mag_fit = np.tile(fit['mag1'],2)
-    ax7.errorbar(phase, mag, yerr=err, fmt='.', color='xkcd:black')
-    ax7.plot(phase_fit, mag_fit, color='xkcd:black')
+    ax7.errorbar(phase, mag, yerr=err, fmt='.', color='xkcd:ocean blue')
+    ax7.plot(phase_fit, mag_fit, color='xkcd:ocean blue')
     ax7.set_xlabel('Phase')
     ax7.set_ylabel(band1)
-    ax7.invert_yaxis()
+    ax7.set_ylim(np.max(lcv_clean['mag'][fil])+0.3, np.min(lcv_clean['mag'][fil])-0.3)
+
+    # plot unphased light curve
+    axbig1.errorbar(lcv['mjd'][filt], lcv['mag'][filt], yerr=lcv['err'][filt],
+        fmt='.', color='xkcd:gray')
+
+    axbig1.errorbar(lcv_clean['mjd'][fil], lcv_clean['mag'][fil],
+        yerr=lcv_clean['err'][fil], fmt='.', color='xkcd:ocean blue')
+    tt = fit['phase']*var_list['period'][i] + var_list['t0'][i]
+    ttt = []
+    for j in np.arange(0,40):
+        ttt = np.append(ttt, tt+(j-20)*var_list['period'][i])
+    mm = np.tile(fit['mag1'], 40)
+    axbig1.plot(ttt, mm, color='xkcd:ocean blue')
+    axbig1.set_xlim(np.min(lcv['mjd'])-0.1, np.max(lcv['mjd'])+0.1)
 
 
-    fil = lcv['filt'] == 1
-    phase = np.mod((lcv['mjd'][fil]-var_list['t0'][i])/var_list['period'][i],1)
+
+    filt = lcv['filt'] == band2
+    phase = np.mod((lcv['mjd'][filt]-var_list['t0'][i])/var_list['period'][i],1)
+    phase_all = np.concatenate((phase, phase+1))
+    mag_all = np.tile(lcv['mag'][filt],2)
+    err_all = np.tile(lcv['err'][filt],2)
+    ax8.errorbar(phase_all, mag_all, yerr=err_all, fmt='.', color='xkcd:gray')
+
+    fil = lcv_clean['filt'] == 1
+    phase = np.mod((lcv_clean['mjd'][fil]-var_list['t0'][i])/var_list['period'][i],1)
     phase = np.concatenate((phase, phase+1))
-    mag = np.tile(lcv['mag'][fil],2)
-    err = np.tile(lcv['err'][fil],2)
+    mag = np.tile(lcv_clean['mag'][fil],2)
+    err = np.tile(lcv_clean['err'][fil],2)
     phase_fit = np.concatenate((fit['phase'], fit['phase']+1))
     mag_fit = np.tile(fit['mag2'],2)
-    ax8.errorbar(phase, mag, yerr=err, fmt='.', color='xkcd:black')
-    ax8.plot(phase_fit, mag_fit, color='xkcd:black')
+    ax8.errorbar(phase, mag, yerr=err, fmt='.', color='xkcd:rose')
+    ax8.plot(phase_fit, mag_fit, color='xkcd:rose')
     ax8.set_xlabel('Phase')
     ax8.set_ylabel(band2)
-    ax8.invert_yaxis()
+    ax8.set_ylim(np.max(lcv_clean['mag'][fil])+0.3, np.min(lcv_clean['mag'][fil])-0.3)
 
+    # plot unphased light curve
+    axbig2.errorbar(lcv['mjd'][filt], lcv['mag'][filt], yerr=lcv['err'][filt],
+        fmt='.', color='xkcd:gray')
+    axbig2.errorbar(lcv_clean['mjd'][fil], lcv_clean['mag'][fil],
+        yerr=lcv_clean['err'][fil], fmt='.', color='xkcd:rose')
+    tt = fit['phase']*var_list['period'][i] + var_list['t0'][i]
+    ttt = []
+    for j in np.arange(0,40):
+        ttt = np.append(ttt, tt+(j-20)*var_list['period'][i])
+    mm = np.tile(fit['mag2'], 40)
+    axbig2.plot(ttt, mm, color='xkcd:rose')
+    axbig2.set_xlim(np.min(lcv['mjd'])-0.1, np.max(lcv['mjd'])+0.1)
 
-    #if image != False:
-    #    fig2, ax9 = plt.subplots(1,1)
-    #    plot_region(var_list['cat_id'][i], PHOT_FILE, image, axes=ax9, xoff=xoff, yoff=yoff)
+    axbig1.set_xlabel('MJD')
+    axbig1.set_ylabel('mag')
+    axbig1.invert_yaxis()
+    axbig2.set_xlabel('MJD')
+    axbig2.set_ylabel('mag')
+    axbig2.invert_yaxis()
 
     # Show and close plot
     plt.show()
@@ -555,11 +606,11 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         var_list2['subtype'][i] = new_subtype
 
         np.savetxt(VAR_FILE, var_list2,
-            fmt=' %7i %7i %3s %3s %7.5f %12.6f %6.3f %5.2f %4.2f %6.3f %5.3f %4.2f')
+            fmt='%8i %8i %3s %3s %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
 
 
     # Save id of star that was processed
-    new_id = str(var_list['cat_id'][i])
+    new_id = str(plot_next_id)
     f = open(LASTID_FILE,'w')
     f.write(new_id+'\n')
     f.close()
@@ -595,8 +646,8 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
         ax2 = axes[1]
 
     # classical cepheid lines
-    x_fo = np.array([-0.7, 1.0])
-    x_fu = np.array([-0.7, 1.7])
+    x_fo = np.array([-0.6, 0.8])
+    x_fu = np.array([0.0, 2.1])
     y_fo = -3.328*x_fo + 16.209 - 18.477 + offset
     y_fu = -2.914*x_fu + 16.672 - 18.477 + offset
     ax1.scatter(x_fo, y_fo, s=1, color='xkcd:sage')
@@ -604,8 +655,8 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
     ax1.fill_between(x_fo, y_fo-0.23, y_fo+0.23, color='xkcd:sage', alpha=0.4)
     ax1.fill_between(x_fu, y_fu-0.21, y_fu+0.21, color='xkcd:gray', alpha=0.4)
     # anomalous cepheid lines
-    x_fo = np.array([-0.5, 0.1])
-    x_fu = np.array([-0.4, 0.5])
+    x_fo = np.array([-0.4, 0.07])
+    x_fu = np.array([-0.2, 0.37])
     y_fo = -3.302*x_fo + 16.656 - 18.477 + offset
     y_fu = -2.962*x_fu + 17.368 - 18.477 + offset
     ax1.scatter(x_fo, y_fo, s=1, color='xkcd:pale purple')
@@ -613,7 +664,7 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
     ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:pale purple', alpha=0.4)
     ax1.fill_between(x_fu, y_fu-0.23, y_fu+0.23, color='xkcd:rose', alpha=0.4)
     # type 2 cepheid line
-    x_fu = np.array([-0.1, 1.7])
+    x_fu = np.array([-0.09, 1.8])
     y_fu = -2.033*x_fu + 18.015 - 18.477 + offset
     ax1.scatter(x_fu, y_fu, s=1, color='xkcd:steel blue')
     ax1.fill_between(x_fu, y_fu-0.4, y_fu+0.4, color='xkcd:steel blue', alpha=0.4)
@@ -662,7 +713,7 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
         ax2 = axes[1]
 
     x_fo = np.array([-0.7, -0.3])
-    x_fu = np.array([-0.5, 0.0])
+    x_fu = np.array([-0.6, 0.0])
     y_fo = -1.946*x_fo + 17.784 - 18.477 + offset
     y_fu = -1.894*x_fu + 18.169 - 18.477 + offset
     ax1.scatter(x_fu, y_fu, s=1, color='xkcd:puce')
@@ -683,7 +734,7 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
         plt.show()
 
 def plot_region(star, star_list, image, ext=0, axes=None, xoff=0, yoff=0,
-    aperture=None):
+    aperture=None, img_limits=[0,500]):
 
     image_data = fits.getdata(image, ext=ext)
 
@@ -693,19 +744,28 @@ def plot_region(star, star_list, image, ext=0, axes=None, xoff=0, yoff=0,
     x_all = star_data['x'] - (xoff+1)
     y_all = star_data['y'] - (yoff+1)
 
-    match = star_data['id'] == int(star)
-    print(match)
-    x = x_all[match][0]
-    y = y_all[match][0]
+    # Not usually necessary but needed for VV124/KKr25
+    star_coords = np.loadtxt('varlist_sel.clean.srt', usecols=(0,1,2), dtype=dt)
+
+    match = star_coords['id'] == int(star)
+    x = star_coords['x'][match][0] - (xoff+1)
+    y = star_coords['y'][match][0] - (yoff+1)
 
     if axes == None:
         fig, ax = plt.subplots(1,1, figsize=(8,5))
     else:
         ax = axes
 
-    image_data[image_data > 1e14] = np.nan
-    image_data[image_data > 500] = 500
-    ax.imshow(image_data+150, cmap='gray_r', norm=LogNorm())
+    #image_data[image_data > 1e14] = np.nan
+    norm1 = ImageNormalize(image_data, vmin=img_limits[0], vmax=img_limits[1],
+        stretch=LogStretch())
+    #norm1 = ImageNormalize(image_data, interval=PercentileInterval(99),
+    #    stretch=LogStretch())
+
+    #
+    #image_data[image_data > img_limits[1]] = img_limits[1]
+    #ax.imshow(image_data+150, cmap='gray_r', norm=LogNorm())
+    ax.imshow(image_data, cmap='gray', norm=norm1)
     #plt.colorbar(cb)
 
     ax.set_aspect('equal')
@@ -718,3 +778,67 @@ def plot_region(star, star_list, image, ext=0, axes=None, xoff=0, yoff=0,
     ax.set_ylim(y-20, y+20)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
+
+
+def update_variable_list(VAR_FILE, star_id, lcv_dir='lcvs/'):
+
+
+    dt = np.dtype([('temp', int), ('period', float), ('chisq', float),
+        ('epoch', float), ('amp1', float), ('t1', float), ('mag1', float),
+        ('amp2', float), ('t2', float), ('mag2', float), ('color', float)])
+    props = np.loadtxt(lcv_dir+'c{}.fitlc_props'.format(star_id), dtype=dt, skiprows=1)
+
+
+    # get mean mag and err from fit and phased file
+    dt = np.dtype([('phase', float), ('mag1', float), ('mag2', float)])
+    fit = np.loadtxt(lcv_dir+'c{}.fitlc_fit'.format(star_id), dtype=dt, skiprows=1)
+    dt = np.dtype([('filter', int), ('phase', float), ('mag', float),
+        ('err', float)])
+    lcv = np.loadtxt(lcv_dir+'c{}.fitlc_phase'.format(star_id), dtype=dt,
+        skiprows=1, usecols=(0,1,2,3))
+
+    flux1 = 99*np.power(10,-fit['mag1']/2.5)
+    flux2 = 99*np.power(10,-fit['mag2']/2.5)
+    mean_mag1 = -2.5*np.log10(np.mean(flux1)/99)
+    mean_mag2 = -2.5*np.log10(np.mean(flux2)/99)
+
+    # photometric uncertainty of points
+    b1 = lcv['filter'] == 0
+    b2 = lcv['filter'] == 1
+    sigma_p1 = 1./np.sum(1./lcv['err'][b1]**2)
+    sigma_p2 = 1./np.sum(1./lcv['err'][b2]**2)
+    # scatter around template
+    n1 = len(lcv['mag'][b1])
+    n2 = len(lcv['mag'][b2])
+    template_mag1 = np.interp(lcv['phase'][b1], fit['phase'], fit['mag1'])
+    template_mag2 = np.interp(lcv['phase'][b2], fit['phase'], fit['mag2'])
+    residuals1 = lcv['mag'][b1] - template_mag1
+    residuals2 = lcv['mag'][b2] - template_mag2
+    sigma_fit1 = 1./float(n1)*np.std(residuals1)
+    sigma_fit2 = 1./float(n2)*np.std(residuals2)
+
+    err1 = np.sqrt(sigma_p1 + sigma_fit1)
+    err2 = np.sqrt(sigma_p2 + sigma_fit2)
+
+    # Load list of variables and types to check
+    dt = np.dtype([('id', int), ('cat_id', int), ('type', 'U4'),
+        ('subtype', 'U4'), ('period', float),
+        ('t0', float), ('mag1', float), ('err1', float), ('amp1', float),
+        ('mag2', float), ('err2', float), ('amp2', float)])
+    var_list = np.loadtxt(VAR_FILE, dtype=dt)
+
+    i = var_list['id'] == int(star_id)
+    print('Old period: {}'.format(var_list['period'][i][0]))
+    print('New period: {}'.format(props['period']))
+    var_list['period'][i] = props['period']
+    var_list['t0'][i] = props['epoch']
+    var_list['mag1'][i] = mean_mag1
+    var_list['err1'][i] = err1
+    var_list['amp1'][i] = props['amp1']
+    var_list['mag2'][i] = mean_mag2
+    var_list['err2'][i] = err2
+    var_list['amp2'][i] = props['amp2']
+
+
+    np.savetxt(VAR_FILE, var_list,
+        fmt='%8i %8i %3s %3s %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
