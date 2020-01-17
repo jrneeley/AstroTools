@@ -329,7 +329,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     # Load list of variables and types to check
     dt = np.dtype([('id', int), ('cat_id', int), ('type', 'U4'),
-        ('subtype', 'U4'), ('period', float),
+        ('subtype', 'U4'), ('x', float), ('y', float), ('period', float),
         ('t0', float), ('mag1', float), ('err1', float), ('amp1', float),
         ('mag2', float), ('err2', float), ('amp2', float)])
     var_list = np.loadtxt(VAR_FILE, dtype=dt)
@@ -340,9 +340,9 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     # Load photometry file
     dt = np.dtype([('id', int), ('mag1', float), ('mag2', float),
         ('sharp', float)])
-    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,10))
-    #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
-    sel = np.abs(allstars['sharp']) < 0.25
+    #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,10))
+    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
+    sel = np.abs(allstars['sharp']) < 0.1
     allstars['mag1'][allstars['mag1'] > 90] = np.nan
     allstars['mag2'][allstars['mag2'] > 90] = np.nan
 
@@ -396,7 +396,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     try:
         dt = np.dtype([('filt', 'U5'), ('mjd', float), ('mag', float), ('err', float)])
-        lcv = np.loadtxt(lcv_dir+'c'+star+'.lcv', dtype=dt, skiprows=3,
+        lcv = np.loadtxt('lcvs/c'+star+'.lcv', dtype=dt, skiprows=3,
             usecols=(0,1,2,3))
         dt = np.dtype([('filt', int), ('mjd', float), ('mag', float), ('err', float)])
         lcv_clean = np.loadtxt(lcv_dir+'c'+star+'.fitlc', dtype=dt, skiprows=3,
@@ -441,8 +441,9 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         transform=ax1.transAxes, color='xkcd:red')
 
     if image != False:
-        plot_region(var_list['cat_id'][i], PHOT_FILE, image, axes=ax2,
-            xoff=xoff, yoff=yoff, aperture=10, img_limits=img_limits)
+        plot_region(var_list['cat_id'][i], var_list['x'][i], var_list['y'][i],
+            PHOT_FILE, image, axes=ax2, xoff=xoff, yoff=yoff, aperture=10,
+            img_limits=img_limits)
 
 
     # Plot Band1 PL
@@ -606,7 +607,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         var_list2['subtype'][i] = new_subtype
 
         np.savetxt(VAR_FILE, var_list2,
-            fmt='%8i %8i %3s %3s %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
+            fmt='%8i %8i %3s %3s %8.3f %8.3f %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
 
 
     # Save id of star that was processed
@@ -733,7 +734,7 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
         ax2.set(xlabel='P [days]', ylabel='I amp')
         plt.show()
 
-def plot_region(star, star_list, image, ext=0, axes=None, xoff=0, yoff=0,
+def plot_region(star, x, y, star_list, image, ext=0, axes=None, xoff=0, yoff=0,
     aperture=None, img_limits=[0,500]):
 
     image_data = fits.getdata(image, ext=ext)
@@ -745,11 +746,11 @@ def plot_region(star, star_list, image, ext=0, axes=None, xoff=0, yoff=0,
     y_all = star_data['y'] - (yoff+1)
 
     # Not usually necessary but needed for VV124/KKr25
-    star_coords = np.loadtxt('varlist_sel.clean.srt', usecols=(0,1,2), dtype=dt)
+    #star_coords = np.loadtxt('varlist_sel.clean.srt', usecols=(0,1,2), dtype=dt)
 
-    match = star_coords['id'] == int(star)
-    x = star_coords['x'][match][0] - (xoff+1)
-    y = star_coords['y'][match][0] - (yoff+1)
+    #match = star_coords['id'] == int(star)
+    #x = star_coords['x'][match][0] - (xoff+1)
+    #y = star_coords['y'][match][0] - (yoff+1)
 
     if axes == None:
         fig, ax = plt.subplots(1,1, figsize=(8,5))
@@ -822,7 +823,7 @@ def update_variable_list(VAR_FILE, star_id, lcv_dir='lcvs/'):
 
     # Load list of variables and types to check
     dt = np.dtype([('id', int), ('cat_id', int), ('type', 'U4'),
-        ('subtype', 'U4'), ('period', float),
+        ('subtype', 'U4'), ('x', float), ('y', float), ('period', float),
         ('t0', float), ('mag1', float), ('err1', float), ('amp1', float),
         ('mag2', float), ('err2', float), ('amp2', float)])
     var_list = np.loadtxt(VAR_FILE, dtype=dt)
@@ -841,4 +842,4 @@ def update_variable_list(VAR_FILE, star_id, lcv_dir='lcvs/'):
 
 
     np.savetxt(VAR_FILE, var_list,
-        fmt='%8i %8i %3s %3s %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
+        fmt='%8i %8i %3s %3s %8.3f %8.3f %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
