@@ -340,8 +340,8 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     # Load photometry file
     dt = np.dtype([('id', int), ('mag1', float), ('mag2', float),
         ('sharp', float)])
-    #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,10))
-    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
+    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,10))
+    #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
     sel = np.abs(allstars['sharp']) < 0.25
     allstars['mag1'][allstars['mag1'] > 90] = np.nan
     allstars['mag2'][allstars['mag2'] > 90] = np.nan
@@ -396,7 +396,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     try:
         dt = np.dtype([('filt', 'U5'), ('mjd', float), ('mag', float), ('err', float)])
-        lcv = np.loadtxt('lcvs/c'+star+'.lcv', dtype=dt, skiprows=3,
+        lcv = np.loadtxt(lcv_dir+'c'+star+'.lcv', dtype=dt, skiprows=3,
             usecols=(0,1,2,3))
         dt = np.dtype([('filt', int), ('mjd', float), ('mag', float), ('err', float)])
         lcv_clean = np.loadtxt(lcv_dir+'c'+star+'.fitlc', dtype=dt, skiprows=3,
