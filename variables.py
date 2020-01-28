@@ -13,6 +13,7 @@ np.warnings.filterwarnings('ignore')
 
 def compute_variability_index(filters, mjds, mags, errs,
     statistic='WelchStetsonI', max_time=0.02):
+    # Currently doesn't allow nans
 
     # separate filters
     filter_list = np.unique(filters)
@@ -81,31 +82,31 @@ def compute_variability_index(filters, mjds, mags, errs,
             n = np.array([n1, n2])
             pick = np.argmax(n)
 
-            sum = 0
-            i2 = 0
+
+            tot = 0
             npairs = 0.0
             for i in range(np.max(n)):
                 if pick == 0:
-                    if i2 == n2:
-                        break
-                    if np.abs(mjds1[i] - mjds2[i2]) <= max_time:
+                    time_diff = mjds1[i] - mjds2
+                    match = np.argwhere(np.abs(time_diff) <= max_time)
+
+                    if len(mjds2[match]) > 0:
                         delta1 = (mags1[i]-mean_mag1)/errs1[i]
-                        delta2 = (mags2[i2]-mean_mag2)/errs2[i2]
-                        sum += delta1*delta2
+                        delta2 = (mags2[match][0]-mean_mag2)/errs2[match][0]
+                        tot += delta1*delta2
                         npairs += 1
-                        i2 += 1
 
                 if pick == 1:
-                    if i2 == n1:
-                        break
-                    if np.abs(mjds1[i2] - mjds2[i]) <= max_time:
-                        delta1 = (mags1[i2]-mean_mag1)/errs1[i2]
-                        delta2 = (mags2[i]-mean_mag2)/errs2[i]
-                        sum += delta1*delta2
-                        npairs += 1
-                        i2 += 1
+                    time_diff = mjds1 - mjds2[i]
+                    match = np.argwhere(np.abs(time_diff) <= max_time)
 
-            stat = np.sqrt(1./(npairs*(npairs-1)))*sum
+                    if len(mjds1[match] > 0):
+                        delta1 = (mags1[match][0]-mean_mag1)/errs1[match][0]
+                        delta2 = (mags2[i]-mean_mag2)/errs2[i]
+                        tot += delta1*delta2
+                        npairs += 1
+
+            stat = np.sqrt(1./(npairs*(npairs-1)))*tot
 
         return stat
 
