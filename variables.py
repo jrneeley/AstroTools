@@ -787,12 +787,14 @@ def update_variable_list(VAR_FILE, star_id, lcv_dir='lcvs/'):
     dt = np.dtype([('temp', int), ('period', float), ('chisq', float),
         ('epoch', float), ('amp1', float), ('t1', float), ('mag1', float),
         ('amp2', float), ('t2', float), ('mag2', float), ('color', float)])
-    props = np.loadtxt(lcv_dir+'c{}.fitlc_props'.format(star_id), dtype=dt, skiprows=1)
+    props = np.loadtxt(lcv_dir+'c{}.fitlc_props'.format(star_id), dtype=dt,
+        skiprows=1)
 
 
     # get mean mag and err from fit and phased file
     dt = np.dtype([('phase', float), ('mag1', float), ('mag2', float)])
-    fit = np.loadtxt(lcv_dir+'c{}.fitlc_fit'.format(star_id), dtype=dt, skiprows=1)
+    fit = np.loadtxt(lcv_dir+'c{}.fitlc_fit'.format(star_id), dtype=dt,
+        skiprows=1)
     dt = np.dtype([('filter', int), ('phase', float), ('mag', float),
         ('err', float)])
     lcv = np.loadtxt(lcv_dir+'c{}.fitlc_phase'.format(star_id), dtype=dt,
