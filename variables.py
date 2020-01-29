@@ -339,10 +339,10 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     vari = var_list['type'] != 'NV'
 
     # Load photometry file
-    dt = np.dtype([('id', int), ('mag1', float), ('mag2', float),
-        ('sharp', float)])
-    #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,10))
-    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
+    dt = np.dtype([('id', int), ('x', float), ('y', float), ('mag1', float),
+        ('mag2', float), ('sharp', float)])
+    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,1,2,3,5,10))
+    #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
     sel = np.abs(allstars['sharp']) < 0.1
     allstars['mag1'][allstars['mag1'] > 90] = np.nan
     allstars['mag2'][allstars['mag2'] > 90] = np.nan
@@ -397,7 +397,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     try:
         dt = np.dtype([('filt', 'U5'), ('mjd', float), ('mag', float), ('err', float)])
-        lcv = np.loadtxt('lcvs/c'+star+'.lcv', dtype=dt, skiprows=3,
+        lcv = np.loadtxt(lcv_dir+'c'+star+'.lcv', dtype=dt, skiprows=3,
             usecols=(0,1,2,3))
         dt = np.dtype([('filt', int), ('mjd', float), ('mag', float), ('err', float)])
         lcv_clean = np.loadtxt(lcv_dir+'c'+star+'.fitlc', dtype=dt, skiprows=3,
@@ -443,8 +443,8 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     if image != False:
         plot_region(var_list['cat_id'][i], var_list['x'][i], var_list['y'][i],
-            PHOT_FILE, image, axes=ax2, xoff=xoff, yoff=yoff, aperture=10,
-            img_limits=img_limits)
+            image, axes=ax2, xall=allstars['x'], yall=allstars['y'],
+            xoff=xoff, yoff=yoff, aperture=10, img_limits=img_limits)
 
 
     # Plot Band1 PL
@@ -735,47 +735,35 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
         ax2.set(xlabel='P [days]', ylabel='I amp')
         plt.show()
 
-def plot_region(star, x, y, star_list, image, ext=0, axes=None, xoff=0, yoff=0,
-    aperture=None, img_limits=[0,500]):
+def plot_region(star, x, y, image, xall=[], yall=[], ext=0,
+    axes=None, xoff=0, yoff=0, aperture=None, img_limits=[0,500]):
 
     image_data = fits.getdata(image, ext=ext)
 
-    dt = np.dtype([('id', int), ('x', float), ('y', float)])
-    star_data = np.loadtxt(star_list, dtype=dt, usecols=(0,1,2), skiprows=3)
+    #dt = np.dtype([('id', int), ('x', float), ('y', float)])
+    #star_data = np.loadtxt(star_list, dtype=dt, usecols=(0,1,2), skiprows=3)
 
-    x_all = star_data['x'] - (xoff+1)
-    y_all = star_data['y'] - (yoff+1)
-
-    # Not usually necessary but needed for VV124/KKr25
-    #star_coords = np.loadtxt('varlist_sel.clean.srt', usecols=(0,1,2), dtype=dt)
-
-    #match = star_coords['id'] == int(star)
-    #x = star_coords['x'][match][0] - (xoff+1)
-    #y = star_coords['y'][match][0] - (yoff+1)
+    #x_all = star_data['x'] - (xoff+1)
+    #y_all = star_data['y'] - (yoff+1)
 
     if axes == None:
         fig, ax = plt.subplots(1,1, figsize=(8,5))
     else:
         ax = axes
 
-    #image_data[image_data > 1e14] = np.nan
     norm1 = ImageNormalize(image_data, vmin=img_limits[0], vmax=img_limits[1],
         stretch=LogStretch())
-    #norm1 = ImageNormalize(image_data, interval=PercentileInterval(99),
-    #    stretch=LogStretch())
 
-    #
-    #image_data[image_data > img_limits[1]] = img_limits[1]
-    #ax.imshow(image_data+150, cmap='gray_r', norm=LogNorm())
     ax.imshow(image_data, cmap='gray', norm=norm1)
-    #plt.colorbar(cb)
 
     ax.set_aspect('equal')
-    #ax.plot(x, y, marker='o', color='red')
     if aperture != None:
         ap = Circle((x, y), aperture, facecolor=None, edgecolor='red', fill=0)
         ax.add_patch(ap)
-    ax.scatter(x_all, y_all, marker='x', color='green')
+    if (len(xall) > 0) & (len(yall) > 0):
+        x_all = xall - (xoff+1)
+        y_all = yall - (yoff+1)
+        ax.scatter(x_all, y_all, marker='x', color='green')
     ax.set_xlim(x-20, x+20)
     ax.set_ylim(y-20, y+20)
     ax.set_xlabel('X')
