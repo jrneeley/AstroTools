@@ -106,7 +106,10 @@ def compute_variability_index(filters, mjds, mags, errs,
                         tot += delta1*delta2
                         npairs += 1
 
-            stat = np.sqrt(1./(npairs*(npairs-1)))*tot
+            if npairs > 2:
+                stat = np.sqrt(1./(npairs*(npairs-1)))*tot
+            else:
+                stat = np.nan
 
         return stat
 
@@ -159,11 +162,9 @@ def compute_variability_index(filters, mjds, mags, errs,
                 if skip_next == True:
                     skip_next = False
                     continue
-                #print(i, j[i], fils[i])
-                #print(i+1, j[i+1], fils[i+1])
+
                 if j[i+1] - j[i] <= max_time:
-                    #print(fils[i], fils[i+1])
-                    # Check if they are observations in the same or different filter
+
                     # Same filter, two obs
                     if fils[i+1] == fils[i]:
                         if fils[i] == filter_list[0]:
@@ -172,7 +173,7 @@ def compute_variability_index(filters, mjds, mags, errs,
                         else:
                             delta1 = np.sqrt(n2/(n2-1))*(m[i] - wmean2)/e[i]
                             delta2 = np.sqrt(n2/(n2-1))*(m[i+1] - wmean2)/e[i+1]
-                        #print(np.sign(delta1*delta2))
+
                         P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                         skip_next = True
                     # Different filters, two obs
@@ -183,7 +184,7 @@ def compute_variability_index(filters, mjds, mags, errs,
                         else:
                             delta1 = np.sqrt(n2/(n2-1))*(m[i] - wmean2)/e[i]
                             delta2 = np.sqrt(n1/(n1-1))*(m[i+1] - wmean1)/e[i+1]
-                        #print(np.sign(delta1*delta2))
+
                         P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
                         skip_next = True
                 # Single obs
@@ -312,13 +313,6 @@ def weighted_mean(mags, errs):
     mean = np.sum(mags*w)/np.sum(w)
 
     return mean
-
-
-def find_variables(index='StetsonJ'):
-
-    # compute variability index for each star
-    for i in range(N):
-        compute_variability_index(filters, mjds, mags, errs)
 
 
 # Classification script

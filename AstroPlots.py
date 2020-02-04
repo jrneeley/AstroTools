@@ -59,8 +59,9 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
         print('Invalid color scale. Choose from: linear, log, arcsinh, sqrt')
         sys.exit()
     # Flip y axis for CMD
-    ax.set_ylim(ylim[1],ylim[0])
-    ax.set_xlim(xlim)
+    #ax.set_ylim(ylim[1],ylim[0])
+    #ax.set_xlim(xlim)
+    ax.invert_yaxis()
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
