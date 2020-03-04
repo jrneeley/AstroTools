@@ -243,4 +243,4 @@ def plot_3D_data(x, y, z, xerr=None, yerr=None, zerr=None, plt_axes=False,
     axes[1,1].set_yticklabels([])
     fig.subplots_adjust(wspace=0, hspace=0)
 
-    return fig
+    return fig, ax
