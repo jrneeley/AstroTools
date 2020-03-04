@@ -530,11 +530,14 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     axbig1.errorbar(lcv_clean['mjd'][fil], lcv_clean['mag'][fil],
         yerr=lcv_clean['err'][fil], fmt='.', color='xkcd:ocean blue')
+    mjd_window = np.max(lcv_clean['mjd'][fil]) - np.min(lcv_clean['mjd'][fil])
+    ncycles = int(np.ceil(mjd_window/var_list['period'][i]))*2
+
     tt = fit['phase']*var_list['period'][i] + var_list['t0'][i]
     ttt = []
-    for j in np.arange(0,40):
-        ttt = np.append(ttt, tt+(j-20)*var_list['period'][i])
-    mm = np.tile(fit['mag1'], 40)
+    for j in np.arange(0,ncycles):
+        ttt = np.append(ttt, tt+(j-ncycles/2)*var_list['period'][i])
+    mm = np.tile(fit['mag1'], ncycles)
     axbig1.plot(ttt, mm, color='xkcd:ocean blue')
     axbig1.set_xlim(np.min(lcv['mjd'])-0.1, np.max(lcv['mjd'])+0.1)
 
@@ -565,11 +568,13 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         fmt='.', color='xkcd:gray')
     axbig2.errorbar(lcv_clean['mjd'][fil], lcv_clean['mag'][fil],
         yerr=lcv_clean['err'][fil], fmt='.', color='xkcd:rose')
+    mjd_window = np.max(lcv_clean['mjd'][fil]) - np.min(lcv_clean['mjd'][fil])
+    ncycles = int(np.ceil(mjd_window/var_list['period'][i]))*2
     tt = fit['phase']*var_list['period'][i] + var_list['t0'][i]
     ttt = []
-    for j in np.arange(0,40):
-        ttt = np.append(ttt, tt+(j-20)*var_list['period'][i])
-    mm = np.tile(fit['mag2'], 40)
+    for j in np.arange(0,ncycles):
+        ttt = np.append(ttt, tt+(j-ncycles/2)*var_list['period'][i])
+    mm = np.tile(fit['mag2'], ncycles)
     axbig2.plot(ttt, mm, color='xkcd:rose')
     axbig2.set_xlim(np.min(lcv['mjd'])-0.1, np.max(lcv['mjd'])+0.1)
 
