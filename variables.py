@@ -7,7 +7,11 @@ from . import config
 from astropy.io import fits
 from matplotlib.colors import LogNorm
 from matplotlib.patches import Circle
-from astropy.visualization import LogStretch, ImageNormalize, PercentileInterval
+#from astropy.visualization import LogStretch, ImageNormalize, PercentileInterval
+from . import AstroPlots as ap
+from brokenaxes import brokenaxes
+from matplotlib.gridspec import GridSpec
+
 
 np.warnings.filterwarnings('ignore')
 
@@ -337,6 +341,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         ('mag2', float), ('sharp', float)])
     allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,1,2,3,5,10))
     #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
+
     sel = np.abs(allstars['sharp']) < 0.1
     allstars['mag1'][allstars['mag1'] > 90] = np.nan
     allstars['mag2'][allstars['mag2'] > 90] = np.nan
@@ -403,21 +408,34 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         return
 
     # Initialize plot
-    fig, ax = plt.subplots(6,2,constrained_layout=True, figsize=(12,18))
-    ax1 = ax[0,0]
-    ax2 = ax[0,1]
-    ax3 = ax[1,0]
-    ax4 = ax[1,1]
-    ax5 = ax[2,0]
-    ax6 = ax[2,1]
-    ax7 = ax[3,0]
-    ax8 = ax[3,1]
-    gs1 = ax[4,0].get_gridspec()
-    for axis in ax[4,:]: axis.remove()
-    axbig1 = fig.add_subplot(gs1[4,:])
-    gs2 = ax[5,0].get_gridspec()
-    for axis in ax[5,:]: axis.remove()
-    axbig2 = fig.add_subplot(gs2[5,:])
+    #fig, ax = plt.subplots(6,2,constrained_layout=True, figsize=(12,18))
+    #ax1 = ax[0,0]
+    #ax2 = ax[0,1]
+    #ax3 = ax[1,0]
+    #ax4 = ax[1,1]
+    #ax5 = ax[2,0]
+    #ax6 = ax[2,1]
+    #ax7 = ax[3,0]
+    #ax8 = ax[3,1]
+    #gs1 = ax[4,0].get_gridspec()
+    #for axis in ax[4,:]: axis.remove()
+    #axbig1 = fig.add_subplot(gs1[4,:])
+    #gs2 = ax[5,0].get_gridspec()
+    #for axis in ax[5,:]: axis.remove()
+    #axbig2 = fig.add_subplot(gs2[5,:])
+
+    fig = plt.figure(constrained_layout=True, figsize=(12,18))
+    gs = GridSpec(6,2, figure=fig)
+    ax1 = fig.add_subplot(gs[0,0])
+    ax2 = fig.add_subplot(gs[0,1])
+    ax3 = fig.add_subplot(gs[1,0])
+    ax4 = fig.add_subplot(gs[1,1])
+    ax5 = fig.add_subplot(gs[2,0])
+    ax6 = fig.add_subplot(gs[2,1])
+    ax7 = fig.add_subplot(gs[3,0])
+    ax8 = fig.add_subplot(gs[3,1])
+    axbig1 = fig.add_subplot(gs[4,:])
+    axbig2 = fig.add_subplot(gs[5,:])
 
     # Plor color-magnitude diagram
     ax1.scatter(allstars['mag1'][sel]-allstars['mag2'][sel], allstars['mag2'][sel],
@@ -436,15 +454,15 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         transform=ax1.transAxes, color='xkcd:red')
 
     if image != False:
-        plot_region(var_list['cat_id'][i], var_list['x'][i], var_list['y'][i],
-            image, axes=ax2, xall=allstars['x'], yall=allstars['y'],
+        ap.plot_region(var_list['cat_id'][i], var_list['x'][i], var_list['y'][i],
+            image, fig=fig, axes=ax2, xall=allstars['x'], yall=allstars['y'],
             xoff=xoff, yoff=yoff, aperture=10, img_limits=img_limits)
 
 
     # Plot Band1 PL
-    # ignore NV and EB stars
+    # ignore NV, LPV, and EB stars
     vclean = (var_list['type'] != 'BIN') & (var_list['type'] != 'NV') & \
-        (var_list['type'] != 'LPV')
+        (var_list['type'] != 'LPV') & (var_list['type'] != 'EB')
     ax3.scatter(np.log10(var_list['period'][vclean]), var_list['mag1'][vclean],
         s=10, color='gray', alpha=0.5)
     ax3.invert_yaxis()
@@ -525,12 +543,42 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     ax7.set_ylim(np.max(lcv_clean['mag'][fil])+0.3, np.min(lcv_clean['mag'][fil])-0.3)
 
     # plot unphased light curve
+
+    # check for break in x-axis
+    mjd_order = np.argsort(lcv['mjd'])
+    min_mjd = lcv['mjd'][mjd_order][0] - 0.1
+    max_mjd = lcv['mjd'][mjd_order][-1] + 0.1
+    mjd_window = max_mjd - min_mjd
+    time_diff = np.diff(lcv['mjd'][mjd_order])
+    breaks = np.argwhere(time_diff > 5) # any time differences larger than 5 days?
+
+    axbig1.set_xlim(min_mjd, max_mjd)
+    axbig2.set_xlim(min_mjd, max_mjd)
+#    if len(breaks) == 0:
+#        axbig1.set_xlim(min_mjd, max_mjd)
+#        axbig2.set_xlim(min_mjd, max_mjd)
+#    else:
+#        nbreaks = len(breaks)
+#        xlim = np.zeros(2*nbreaks+2)
+#        xlim[0] = min_mjd
+#        xlim[-1] = max_mjd
+
+#        j = 1
+#        while j < 2*nbreaks:
+#            xlim[j] = lcv['mjd'][mjd_order][breaks[j-1]]+0.2
+#            xlim[j+1] = lcv['mjd'][mjd_order][breaks[j-1]+1]-0.2
+#            j += 2
+#        xlim = np.reshape(xlim, (nbreaks+1,2))
+#        xlim = tuple(map(tuple, xlim))
+#        print(xlim)
+#        bax1 = brokenaxes(xlims=xlim, subplot_spec=gs[4,:], fig=fig)
+#        bax2 = brokenaxes(xlims=xlim, subplot_spec=gs[5,:], fig=fig)
+
+
     axbig1.errorbar(lcv['mjd'][filt], lcv['mag'][filt], yerr=lcv['err'][filt],
         fmt='.', color='xkcd:gray')
-
     axbig1.errorbar(lcv_clean['mjd'][fil], lcv_clean['mag'][fil],
         yerr=lcv_clean['err'][fil], fmt='.', color='xkcd:ocean blue')
-    mjd_window = np.max(lcv_clean['mjd'][fil]) - np.min(lcv_clean['mjd'][fil])
     ncycles = int(np.ceil(mjd_window/var_list['period'][i]))*2
 
     tt = fit['phase']*var_list['period'][i] + var_list['t0'][i]
@@ -540,7 +588,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     mm = np.tile(fit['mag1'], ncycles)
     axbig1.plot(ttt, mm, color='xkcd:ocean blue')
     axbig1.set_xlim(np.min(lcv['mjd'])-0.1, np.max(lcv['mjd'])+0.1)
-
+    axbig1.set_ylim(np.mean(fit['mag1'])+1.0, np.mean(fit['mag1'])-1.0)
 
 
     filt = lcv['filt'] == band2
@@ -568,22 +616,18 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         fmt='.', color='xkcd:gray')
     axbig2.errorbar(lcv_clean['mjd'][fil], lcv_clean['mag'][fil],
         yerr=lcv_clean['err'][fil], fmt='.', color='xkcd:rose')
-    mjd_window = np.max(lcv_clean['mjd'][fil]) - np.min(lcv_clean['mjd'][fil])
-    ncycles = int(np.ceil(mjd_window/var_list['period'][i]))*2
-    tt = fit['phase']*var_list['period'][i] + var_list['t0'][i]
-    ttt = []
-    for j in np.arange(0,ncycles):
-        ttt = np.append(ttt, tt+(j-ncycles/2)*var_list['period'][i])
+
     mm = np.tile(fit['mag2'], ncycles)
     axbig2.plot(ttt, mm, color='xkcd:rose')
-    axbig2.set_xlim(np.min(lcv['mjd'])-0.1, np.max(lcv['mjd'])+0.1)
+    #axbig2.set_xlim(np.min(lcv['mjd'])-0.1, np.max(lcv['mjd'])+0.1)
+    axbig2.set_ylim(np.mean(fit['mag2'])+1.0, np.mean(fit['mag2'])-1.0)
 
     axbig1.set_xlabel('MJD')
     axbig1.set_ylabel('mag')
-    axbig1.invert_yaxis()
+    #axbig1.invert_yaxis()
     axbig2.set_xlabel('MJD')
     axbig2.set_ylabel('mag')
-    axbig2.invert_yaxis()
+    #axbig2.invert_yaxis()
 
     # Show and close plot
     plt.show()
@@ -733,40 +777,6 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
         ax1.invert_yaxis()
         ax2.set(xlabel='P [days]', ylabel='I amp')
         plt.show()
-
-def plot_region(star, x, y, image, xall=[], yall=[], ext=0,
-    axes=None, xoff=0, yoff=0, aperture=None, img_limits=[0,500]):
-
-    image_data = fits.getdata(image, ext=ext)
-
-    #dt = np.dtype([('id', int), ('x', float), ('y', float)])
-    #star_data = np.loadtxt(star_list, dtype=dt, usecols=(0,1,2), skiprows=3)
-
-    #x_all = star_data['x'] - (xoff+1)
-    #y_all = star_data['y'] - (yoff+1)
-
-    if axes == None:
-        fig, ax = plt.subplots(1,1, figsize=(8,5))
-    else:
-        ax = axes
-
-    norm1 = ImageNormalize(image_data, vmin=img_limits[0], vmax=img_limits[1],
-        stretch=LogStretch())
-
-    ax.imshow(image_data, cmap='gray', norm=norm1)
-
-    ax.set_aspect('equal')
-    if aperture != None:
-        ap = Circle((x, y), aperture, facecolor=None, edgecolor='red', fill=0)
-        ax.add_patch(ap)
-    if (len(xall) > 0) & (len(yall) > 0):
-        x_all = xall - (xoff+1)
-        y_all = yall - (yoff+1)
-        ax.scatter(x_all, y_all, marker='x', color='green')
-    ax.set_xlim(x-20, x+20)
-    ax.set_ylim(y-20, y+20)
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
 
 
 def update_variable_list(VAR_FILE, star_id, lcv_dir='lcvs/'):
