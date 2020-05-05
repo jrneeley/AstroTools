@@ -36,6 +36,7 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     Z, xedges, yedges = np.histogram2d(color,mag,bins=(500,1000), \
         range=[xlim, ylim])
     Z[Z == 0] = np.nan
+
     Y, X = np.meshgrid(yedges, xedges)
 
     if plt_axes == False:
@@ -45,16 +46,20 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
         ax = plt_axes
 
     if cbar_scale == 'linear':
-        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max, rasterized=rasterized)
+        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'log':
         Z_new = np.log10(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'arcsinh':
         Z_new = np.arcsinh(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'sqrt':
         Z_new = np.sqrt(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     else:
         print('Invalid color scale. Choose from: linear, log, arcsinh, sqrt')
         sys.exit()

@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-#sys.path.insert(0, '/Users/jill/python/')
-#import daophot_tools as dao
 from . import config
 from astropy.io import fits
 from matplotlib.colors import LogNorm
@@ -21,7 +19,7 @@ def compute_variability_index(filters, mjds, mags, errs,
 
     if statistic == 'WelchStetsonI':
     # This is an appropriate index when you have more or less consecutive
-    # observations in two filters
+    # observations in one or two filters
 
         if n_filts == 1:
 
