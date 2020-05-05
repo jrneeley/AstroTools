@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import matplotlib.gridspec as gridspec
+from astropy.visualization import LogStretch, ImageNormalize, PercentileInterval
+from astropy.io import fits
+from matplotlib.patches import Circle
 
 def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     ylabel='mag', cbar_max=None, cbar_min=None, cbar_scale='linear', \
@@ -248,4 +251,35 @@ def plot_3D_data(x, y, z, xerr=None, yerr=None, zerr=None, plt_axes=False,
     axes[1,1].set_yticklabels([])
     fig.subplots_adjust(wspace=0, hspace=0)
 
-    return fig, ax
+    return fig, axes
+
+
+def plot_region(star, x, y, image, xall=[], yall=[], ext=0,
+    fig=None, axes=None, xoff=0, yoff=0, aperture=None, img_limits=[0,500]):
+
+    image_data = fits.getdata(image, ext=ext)
+
+    if fig is None:
+        fig, ax = plt.subplots(1,1, figsize=(8,5))
+    else:
+        ax = axes
+
+    norm1 = ImageNormalize(image_data, vmin=img_limits[0], vmax=img_limits[1],
+        stretch=LogStretch())
+
+    ax.imshow(image_data, cmap='gray', norm=norm1)
+
+    ax.set_aspect('equal')
+    if aperture != None:
+        ap = Circle((x, y), aperture, facecolor=None, edgecolor='red', fill=0)
+        ax.add_patch(ap)
+    if (len(xall) > 0) & (len(yall) > 0):
+        x_all = xall - (xoff+1)
+        y_all = yall - (yoff+1)
+        ax.scatter(x_all, y_all, marker='x', color='green')
+    ax.set_xlim(x-20, x+20)
+    ax.set_ylim(y-20, y+20)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+
+    #return fig, ax
