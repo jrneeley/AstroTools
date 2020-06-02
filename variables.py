@@ -7,7 +7,7 @@ from matplotlib.colors import LogNorm
 from matplotlib.patches import Circle
 #from astropy.visualization import LogStretch, ImageNormalize, PercentileInterval
 from . import AstroPlots as ap
-from brokenaxes import brokenaxes
+#from brokenaxes import brokenaxes
 from matplotlib.gridspec import GridSpec
 
 
@@ -727,6 +727,63 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
         ax2.set(xlabel='P [days]', ylabel='I amp')
         plt.show()
 
+
+def plot_lmc_cep_pl(axes=None, offset=0, period_cutoff=0):
+
+    t2cep_dir = config.ogle_dir+'LMC/t2cep/'
+    acep_dir = config.ogle_dir+'LMC/acep/'
+    ccep_dir = config.ogle_dir+'LMC/ccep/'
+
+    dt = np.dtype([('i', float), ('v', float), ('p', float), ('amp', float)])
+    t2cep = np.loadtxt(t2cep_dir+'t2cep.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    afu = np.loadtxt(acep_dir+'acepF.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    afo = np.loadtxt(acep_dir+'acep1O.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    cfu = np.loadtxt(ccep_dir+'cepF.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    cfo = np.loadtxt(ccep_dir+'cep1O.dat.txt', usecols=(1,2,3,6), dtype=dt)
+
+    if period_cutoff != 0:
+        t2cep['p'][t2cep['p'] > period_cutoff] = np.nan
+        afo['p'][afo['p'] > period_cutoff] = np.nan
+        afu['p'][afu['p'] > period_cutoff] = np.nan
+        cfo['p'][cfo['p'] > period_cutoff] = np.nan
+        cfu['p'][cfu['p'] > period_cutoff] = np.nan
+    if axes == None:
+        fig1, ax1 = plt.subplots(1,1)
+
+    else:
+        ax1 = axes
+
+
+    # classical cepheid lines
+    x_fo = np.array([-0.6, 0.8])
+    x_fu = np.array([0.0, 2.1])
+    y_fo = -3.328*x_fo + 16.209 - 18.477 + offset
+    y_fu = -2.914*x_fu + 16.672 - 18.477 + offset
+    ax1.scatter(x_fo, y_fo, s=1, color='xkcd:sage')
+    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:gray')
+    ax1.fill_between(x_fo, y_fo-0.23, y_fo+0.23, color='xkcd:sage', alpha=0.4)
+    ax1.fill_between(x_fu, y_fu-0.21, y_fu+0.21, color='xkcd:gray', alpha=0.4)
+    # anomalous cepheid lines
+    x_fo = np.array([-0.4, 0.07])
+    x_fu = np.array([-0.2, 0.37])
+    y_fo = -3.302*x_fo + 16.656 - 18.477 + offset
+    y_fu = -2.962*x_fu + 17.368 - 18.477 + offset
+    ax1.scatter(x_fo, y_fo, s=1, color='xkcd:pale purple')
+    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:rose')
+    ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:pale purple', alpha=0.4)
+    ax1.fill_between(x_fu, y_fu-0.23, y_fu+0.23, color='xkcd:rose', alpha=0.4)
+    # type 2 cepheid line
+    x_fu = np.array([-0.09, 1.8])
+    y_fu = -2.033*x_fu + 18.015 - 18.477 + offset
+    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:steel blue')
+    ax1.fill_between(x_fu, y_fu-0.4, y_fu+0.4, color='xkcd:steel blue', alpha=0.4)
+
+    if axes == None:
+        ax1.set_xlabel('$\log P$')
+        ax1.set_ylabel('I mag')
+        ax1.invert_yaxis()
+        ax2.set(xlabel='P [days]', ylabel='I amp')
+        plt.show()
 
 def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
 

@@ -148,7 +148,7 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
 
 def residual_plot(w=3.5, h=3.5):
 
-    fig = plt.figure(figsize=(w,h))
+    fig = plt.figure(figsize=(w,h), tight_layout=True)
     grid = gridspec.GridSpec(3,1, hspace=0.0)
 
     ax1 = fig.add_subplot(grid[:-1,:])
@@ -156,7 +156,7 @@ def residual_plot(w=3.5, h=3.5):
     ax1.tick_params(axis='x', direction='in')
     #ax1.set_xticklabels([])
     plt.setp(ax1.get_xticklabels(), visible=False)
-    return ax1, ax2
+    return fig, ax1, ax2
 
 
 # A helper function to make the plots with error ellipses
