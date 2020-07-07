@@ -282,4 +282,6 @@ def plot_region(star, x, y, image, xall=[], yall=[], ext=0,
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
 
+    if fig == None:
+        return fig, ax
     #return fig, ax
