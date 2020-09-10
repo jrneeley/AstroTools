@@ -241,21 +241,41 @@ def compute_variability_index(filters, mjds, mags, errs,
             stat = np.sqrt(stat)
 
         # should it be added in quadrature?
-        #if n_filts > 1:
-
+        if n_filts > 1:
+            stats = np.zeros(n_filts)
+            for i in range(n_filts):
+                f = filters == filter_list[i]
+                stats[i] = weighted_stddev(mags[f], errs[f])
+            stat = np.sqrt(np.sum(stats))
         return stat
 
     if statistic == 'MAD':
 
-        if n_filts == 1:
-            n = float(len(mags))
-            order = np.argsort(mjds)
-            m = mags[order]
-            e = errs[order]
+        deviation = []
+        for i in range(n_filts):
+            f = filters == filter_list[i]
+            n = float(len(mags[f]))
+            order = np.argsort(mjds[f])
+            m = mags[f][order]
+            e = errs[f][order]
 
             med = np.median(m)
-            stat = np.median(np.abs(m - med))
+            deviation = np.append(deviation, np.abs(m - med))
 
+        stat = np.median(deviation)
+
+        return stat
+
+    if statistic == 'median':
+
+        stats = np.zeros(n_filts)
+        for i in range(n_filts):
+            f = filters == filter_list[i]
+            n = float(len(mags[f]))
+            median_mag = np.nanmedian(mags[f])
+            frame_residual = np.abs(mags[f] - median_mag)
+            stats[i] = np.mean(frame_residual)
+        stat = np.sum(stats)
         return stat
 
     if statistic == 'IQR':
@@ -275,14 +295,16 @@ def compute_variability_index(filters, mjds, mags, errs,
 
     if statistic == 'RoMS':
 
-        if n_filts == 1:
-            n = float(len(mags))
-            sum = np.sum(np.abs(mags-np.median(mags))/errs)
-
-            stat = sum/(n-1)
+        sum = 0
+        n_tot = len(mags)
+        for i in range(n_filts):
+            f = filters == filter_list[i]
+            n = float(len(mags[f]))
+            sum += np.sum(np.abs(mags[f]-np.median(mags[f]))/errs[f])
+        
+        stat = sum/(n_tot-1)
 
         return stat
-
 
 
 def stetson_robust_mean(mags, errs):
@@ -311,11 +333,38 @@ def stetson_robust_mean(mags, errs):
 
 def weighted_mean(mags, errs):
 
-    w = 1./errs**2
-    mean = np.sum(mags*w)/np.sum(w)
+    finite = (~np.isnan(mags)) & (~np.isnan(errs))
+    weights = 1./errs[finite]**2
+    sum_weights = np.sum(weights)
+
+    mean = np.sum(mags[finite]*weights)/sum_weights
 
     return mean
 
+def weighted_intensity_mean(mags, errs):
+
+    finite = (~np.isnan(mags)) & (~np.isnan(errs))
+    flux = 10**(-mags/2.5)
+    eflux = flux*errs
+    weights = 1./eflux[finite]**2
+    sum_weights = np.sum(weights)
+
+    mean_flux = np.sum(flux[finite]*weights)/sum_weights
+    mean_mag = -2.5*np.log10(mean_flux)
+    return mean_mag
+
+def weighted_stddev(mags, errs):
+
+    finite = (~np.isnan(mags)) & (~np.isnan(errs))
+    weights = 1./errs[finite]**2
+    mean = weighted_intensity_mean(mags, errs)
+    sum_weights = np.sum(weights)
+    top = np.sum(weights*(mags[finite]-mean)**2)
+    num = float(len(mags[finite]))
+    bottom = (num-1)*sum_weights/num
+    stddev = np.sqrt(top/bottom)
+
+    return stddev
 
 # Classification script
 def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,

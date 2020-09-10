@@ -82,7 +82,7 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
 
 def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
     ylabel='Y', cbar_max=None, cbar_min=None, cbar_scale='linear', \
-    cmap=plt.cm.viridis, plt_axes=False, save_as='None'):
+    cmap=plt.cm.viridis, plt_axes=False, save_as='None', rasterized=False):
     """
     Plot generic data as a 2D density plot.
 
@@ -124,16 +124,20 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
     else: ax = plt_axes
 
     if cbar_scale == 'linear':
-        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'log':
         Z_new = np.log10(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'arcsinh':
         Z_new = np.arcsinh(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'sqrt':
         Z_new = np.sqrt(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     else:
         print('Invalid color scale. Choose from: linear, log, arcsinh, sqrt')
         sys.exit()
