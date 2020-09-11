@@ -338,8 +338,8 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     # Load photometry file
     dt = np.dtype([('id', int), ('x', float), ('y', float), ('mag1', float),
-        ('mag2', float), ('sharp', float)])
-    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,1,2,3,5,10))
+        ('mag2', float), ('chi', float), ('sharp', float)])
+    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,1,2,3,5,9,10))
     #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
 
     sel = np.abs(allstars['sharp']) < 0.1
@@ -383,6 +383,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     else:
         i = np.argwhere(var_list['id'] == int(star_id))[0]
         plot_next_id = var_list['id'][i][0]
+        #print(star_id, i, plot_next_id)
 
 
     # Print id of star being processed
@@ -408,22 +409,6 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         return
 
     # Initialize plot
-    #fig, ax = plt.subplots(6,2,constrained_layout=True, figsize=(12,18))
-    #ax1 = ax[0,0]
-    #ax2 = ax[0,1]
-    #ax3 = ax[1,0]
-    #ax4 = ax[1,1]
-    #ax5 = ax[2,0]
-    #ax6 = ax[2,1]
-    #ax7 = ax[3,0]
-    #ax8 = ax[3,1]
-    #gs1 = ax[4,0].get_gridspec()
-    #for axis in ax[4,:]: axis.remove()
-    #axbig1 = fig.add_subplot(gs1[4,:])
-    #gs2 = ax[5,0].get_gridspec()
-    #for axis in ax[5,:]: axis.remove()
-    #axbig2 = fig.add_subplot(gs2[5,:])
-
     fig = plt.figure(constrained_layout=True, figsize=(12,18))
     gs = GridSpec(6,2, figure=fig)
     ax1 = fig.add_subplot(gs[0,0])
@@ -442,7 +427,6 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         s=1, alpha=0.5, color='gray')
     ax1.scatter(var_list['mag1'][vari]-var_list['mag2'][vari],
         var_list['mag2'][vari], s=10, color='xkcd:blue')
-    #ax1.set_ylim(29,21)
     ax1.invert_yaxis()
     ax1.set_xlim(-2,4)
     ax1.set_xlabel('{} - {}'.format(band1, band2))
@@ -458,13 +442,24 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
             image, fig=fig, axes=ax2, xall=allstars['x'], yall=allstars['y'],
             xoff=xoff, yoff=yoff, aperture=10, img_limits=img_limits)
 
+    if image == False: 
+       ax2.scatter(allstars['x'], allstars['y'], marker='.', s=1, color='gray', alpha=0.3)
+       ax2.scatter(var_list['x'][i], var_list['y'][i], s=5, color='red')
+       ax2.set_ylabel('x')
+       ax2.set_xlabel('y')
 
     # Plot Band1 PL
     # ignore NV, LPV, and EB stars
     vclean = (var_list['type'] != 'BIN') & (var_list['type'] != 'NV') & \
         (var_list['type'] != 'LPV') & (var_list['type'] != 'EB')
-    ax3.scatter(np.log10(var_list['period'][vclean]), var_list['mag1'][vclean],
+    
+    can = var_list['type'] == 'XXX'
+    confirmed = (var_list['type'] == 'RRL') | (var_list['type'] == 'CEP') | (var_list['type'] == 'AC')
+
+    ax3.scatter(np.log10(var_list['period'][can]), var_list['mag1'][can],
         s=10, color='gray', alpha=0.5)
+    ax3.scatter(np.log10(var_list['period'][confirmed]), var_list['mag1'][confirmed],
+        s=10, color='k', alpha=0.5)
     ax3.invert_yaxis()
     ax3.set_ylabel(band1)
     ax3.set_xlabel('$\log P$ [days]')
@@ -512,6 +507,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         ax6.scatter(np.log10(var_list['period'][i]),
             var_list['amp1'][i]/var_list['amp2'][i],
             color='xkcd:red', s=40)
+        ax6.set_ylim(0,5)
         ax6.set_xlabel('$\log P$')
         ax6.set_ylabel('Amp ratio')
     else:
@@ -651,7 +647,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         var_list2['subtype'][i] = new_subtype
 
         np.savetxt(VAR_FILE, var_list2,
-            fmt='%8i %8i %3s %3s %8.3f %8.3f %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
+            fmt='%8i %10i %3s %3s %8.3f %8.3f %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
 
 
     # Save id of star that was processed
