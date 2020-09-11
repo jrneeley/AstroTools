@@ -39,6 +39,7 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     Z, xedges, yedges = np.histogram2d(color,mag,bins=(500,1000), \
         range=[xlim, ylim])
     Z[Z == 0] = np.nan
+
     Y, X = np.meshgrid(yedges, xedges)
 
     if plt_axes == False:
@@ -48,16 +49,20 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
         ax = plt_axes
 
     if cbar_scale == 'linear':
-        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max, rasterized=rasterized)
+        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'log':
         Z_new = np.log10(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'arcsinh':
         Z_new = np.arcsinh(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'sqrt':
         Z_new = np.sqrt(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     else:
         print('Invalid color scale. Choose from: linear, log, arcsinh, sqrt')
         sys.exit()
@@ -77,7 +82,7 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
 
 def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
     ylabel='Y', cbar_max=None, cbar_min=None, cbar_scale='linear', \
-    cmap=plt.cm.viridis, plt_axes=False, save_as='None'):
+    cmap=plt.cm.viridis, plt_axes=False, save_as='None', rasterized=False):
     """
     Plot generic data as a 2D density plot.
 
@@ -119,16 +124,20 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
     else: ax = plt_axes
 
     if cbar_scale == 'linear':
-        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'log':
         Z_new = np.log10(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'arcsinh':
         Z_new = np.arcsinh(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     elif cbar_scale == 'sqrt':
         Z_new = np.sqrt(Z)
-        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max)
+        ax.pcolormesh(X, Y, Z_new, cmap=cmap, vmin=cbar_min, vmax=cbar_max,
+            rasterized=rasterized)
     else:
         print('Invalid color scale. Choose from: linear, log, arcsinh, sqrt')
         sys.exit()
@@ -143,7 +152,7 @@ def plot_2D_density(x, y, xlim=[-10,10], ylim=[-10,10], xlabel='X', \
 
 def residual_plot(w=3.5, h=3.5):
 
-    fig = plt.figure(figsize=(w,h))
+    fig = plt.figure(figsize=(w,h), tight_layout=True)
     grid = gridspec.GridSpec(3,1, hspace=0.0)
 
     ax1 = fig.add_subplot(grid[:-1,:])
@@ -151,7 +160,7 @@ def residual_plot(w=3.5, h=3.5):
     ax1.tick_params(axis='x', direction='in')
     #ax1.set_xticklabels([])
     plt.setp(ax1.get_xticklabels(), visible=False)
-    return ax1, ax2
+    return fig, ax1, ax2
 
 
 # A helper function to make the plots with error ellipses
@@ -277,4 +286,6 @@ def plot_region(star, x, y, image, xall=[], yall=[], ext=0,
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
 
+    if fig == None:
+        return fig, ax
     #return fig, ax
