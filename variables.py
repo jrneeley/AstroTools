@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 from . import config
+from . import math_tools
 from astropy.io import fits
 from matplotlib.colors import LogNorm
 from matplotlib.patches import Circle
@@ -15,20 +16,25 @@ np.warnings.filterwarnings('ignore')
 
 def compute_variability_index(filters, mjds, mags, errs,
     statistic='WelchStetsonI', max_time=0.02):
-    # Currently doesn't allow nans
+    # Currently doesn't allow nans for all indices
 
     # separate filters
     filter_list = np.unique(filters)
     n_filts = len(filter_list)
+    # How many total observations (in all filters) do we have?
+    num_obs_total = len(mags)
 
     if statistic == 'WelchStetsonI':
+
+    ## NOT FINISHED
+
     # This is an appropriate index when you have more or less consecutive
     # observations in one or two filters
 
         if n_filts == 1:
 
             # Derive weighted mean from full sample
-            mean_mag = weighted_mean(mags, errs)
+            mean_mag = math_tools.weighted_mean(mags, errs)
 
             # Get observation pairs
             # sort by observation time
@@ -76,8 +82,8 @@ def compute_variability_index(filters, mjds, mags, errs,
             mjds2 = mjds2[order2]
 
 
-            mean_mag1 = weighted_mean(mags1, errs1)
-            mean_mag2 = weighted_mean(mags2, errs2)
+            mean_mag1 = math_tools.weighted_mean(mags1, errs1)
+            mean_mag2 = math_tools.weighted_mean(mags2, errs2)
 
             n1 = len(mags1)
             n2 = len(mags2)
@@ -113,172 +119,143 @@ def compute_variability_index(filters, mjds, mags, errs,
             else:
                 stat = np.nan
 
-        return stat
-
     if statistic == 'StetsonJ':
 
+        # set up arrays for the weighted mean, the number of observations in each
+        # filter, and the filter number of each observation (integer for indexing)
+        weighted_means = np.zeros(n_filts)
+        num_obs = np.zeros(n_filts)
+        filter_num = np.zeros(num_obs_total)
+
+        for i in range(n_filts):
+            # select out only the observations in this filter.
+            # NOTE: This creates a boolean
+            # array of the same length as filters, where the elements are true
+            # if it satisfies the condition. It can be used to index another array -
+            # I do this a lot in python, but don't remember if you can do the same
+            # in IDL without using the where() function
+            f = filters == filter_list[i]
+            # compute the weighted mean in each filter
+            weighted_means[i] = math_tools.stetson_robust_mean(mags[f], errs[f])
+            num_obs[i] = float(len(mags[f]))
+            filter_num[f] = i
+
         order = np.argsort(mjds)
-        m = mags[order]
-        e = errs[order]
-        j = mjds[order]
-        fils = filters[order]
+        mags_temp = mags[order]
+        errs_temp = errs[order]
+        mjds_temp = mjds[order]
+        filt_temp = filter_num[order]
 
-        if n_filts == 1:
-            wmean = stetson_robust_mean(mags, errs)
-            n = float(len(mags))
 
-            P = 0
-            n_pairs = 0
-            skip_next = False
-            for i in range(len(mags)-1):
-                if skip_next == True:
-                    skip_next = False
-                    continue
-                if j[i+1] - j[i] <= max_time:
-                    delta1 = np.sqrt(n/(n-1))*(m[i] - wmean)/e[i]
-                    delta2 = np.sqrt(n/(n-1))*(m[i+1] - wmean)/e[i+1]
-                    P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
-                    skip_next = True
-                    n_pairs += 1
-                else:
-                    delta1 = np.sqrt(n/(n-1))*(m[i] - wmean)/e[i]
-                    P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
-                    skip_next = False
-                    n_pairs += 1
-            stat = P
+        P = 0
+        n_pairs = 0
+        skip_next = False
+        for i in range(num_obs_total-1):
+            # If skip_next == True, then this observation has already been counted
+            # in a pair, so change it back to False and move on to the next
+            # iteration of the loop
+            if skip_next == True:
+                skip_next = False
+                continue
 
-        if n_filts == 2:
+            # Check if the current observation and the next one were taken close
+            # together in time. If they are within your maximum time difference,
+            # count them as a pair
+            if mjds_temp[i+1] - mjds_temp[i] <= max_time:
 
-            f1 = filters == filter_list[0]
-            wmean1 = stetson_robust_mean(mags[f1], errs[f1])
-            n1 = float(len(mags[f1]))
-            f2 = filters == filter_list[1]
-            wmean2 = stetson_robust_mean(mags[f2], errs[f2])
-            n2 = float(len(mags[f2]))
+                # Check which filters the observations in our pair were taken in, so
+                # we compare them to the appropriate weighted mean.
+                # This allows for the possibility that these two observations are
+                # from the same or different filters
+                fnum1 = int(filt_temp[i])
+                fnum2 = int(filt_temp[i+1])
 
-            P = 0
-            n_pairs = 0
-            skip_next = False
-            for i in range(len(mags)-1):
+                temp1 = (mags_temp[i] - weighted_means[fnum1])/errs_temp[i]
+                delta1 = np.sqrt(num_obs[fnum1]/(num_obs[fnum1]-1))*temp1
 
-                if skip_next == True:
-                    skip_next = False
-                    continue
+                temp2 = (mags_temp[i+1] - weighted_means[fnum2])/errs_temp[i+1]
+                delta2 = np.sqrt(num_obs[fnum2]/(num_obs[fnum2]-1))*temp2
+                # Stetson math
+                P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
+                # We paired observation i and i+1, so we will need to skip the
+                # next iteration
+                skip_next = True
 
-                if j[i+1] - j[i] <= max_time:
 
-                    # Same filter, two obs
-                    if fils[i+1] == fils[i]:
-                        if fils[i] == filter_list[0]:
-                            delta1 = np.sqrt(n1/(n1-1))*(m[i] - wmean1)/e[i]
-                            delta2 = np.sqrt(n1/(n1-1))*(m[i+1] - wmean1)/e[i+1]
-                        else:
-                            delta1 = np.sqrt(n2/(n2-1))*(m[i] - wmean2)/e[i]
-                            delta2 = np.sqrt(n2/(n2-1))*(m[i+1] - wmean2)/e[i+1]
+            # This observation is not part of a pair, (could be an isolated
+            # observation or part of a grouping of an odd nubmer of observations)
+            # and is now treated as a single observation.
+            else:
+                fnum = int(filt_temp[i])
+                temp = (mags_temp[i] - weighted_means[fnum])/errs_temp[i]
+                delta = np.sqrt(num_obs[fnum]/(num_obs[fnum]-1))*temp
 
-                        P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
-                        skip_next = True
-                    # Different filters, two obs
-                    else:
-                        if fils[i] == filter_list[0]:
-                            delta1 = np.sqrt(n1/(n1-1))*(m[i] - wmean1)/e[i]
-                            delta2 = np.sqrt(n2/(n2-1))*(m[i+1] - wmean2)/e[i+1]
-                        else:
-                            delta1 = np.sqrt(n2/(n2-1))*(m[i] - wmean2)/e[i]
-                            delta2 = np.sqrt(n1/(n1-1))*(m[i+1] - wmean1)/e[i+1]
+                P += np.sign(delta*delta-1)*np.sqrt(np.abs(delta*delta-1))
+                skip_next = False
 
-                        P += np.sign(delta1*delta2)*np.sqrt(np.abs(delta1*delta2))
-                        skip_next = True
-                # Single obs
-                else:
-                    if fils[i] == filter_list[0]:
-                        delta1 = np.sqrt(n1/(n1-1))*(m[i] - wmean1)/e[i]
-                    else:
-                        delta1 = np.sqrt(n2/(n2-1))*(m[i] - wmean2)/e[i]
-                    P += np.sign(delta1*delta1-1)*np.sqrt(np.abs(delta1*delta1-1))
-                    skip_next = False
-                n_pairs += 1
+            n_pairs += 1
 
             stat = P
-
-        return stat
 
     if statistic == 'StetsonK':
         # NOT FINISHED
-        wmean = stetson_robust_mean(mags, errs)
+        wmean = math_tools.stetson_robust_mean(mags, errs)
         n = float(len(mags))
 
         delta = np.sqrt(n/(n-1))*(mags-wmean)
 
     if statistic == 'reduced chisq':
 
-        if n_filts == 1:
-            n = float(len(mags))
-            mean_mag = weighted_mean(mags, errs)
-            stat = 1/n*np.sum((mags-mean_mag)**2/errs**2)
+        sum = 0
 
-        if n_filts > 1:
+        # Loop through all filters, but a single chi squared using observations
+        # in all filters is computed in the end
+        for i in range(n_filts):
+            f = filters == filter_list[i]
+            # Let's use traditional weighted mean this time.
+            weighted_mean_mag = math_tools.weighted_mean(mags[f], errs[f])
+            # Use += so we can combine information from different filters
+            sum += np.sum((mags[f]-weighted_mean_mag)**2/errs[f]**2)
 
-            n_tot = 0
-            sum = 0
-            for i in range(n_filts):
-                f = filters == filter_list[i]
-                n_tot += float(len(mags[f]))
-                mean_mag = weighted_mean(mags[f], errs[f])
-                sum += np.sum((mags[f]-mean_mag)**2/errs[f]**2)
+        chi_squared = 1./(float(num_obs_total)-1)*sum
 
-            stat = 1./(n_tot-1)*(sum)
-
-        return stat
+        stat = chi_squared
 
     if statistic == 'weighted std':
 
-        if n_filts == 1:
-            n = float(len(mags))
-            w = 1./errs**2
-            mean_mag = weighted_mean(mags, errs)
-            stat = np.sum(w)*np.sum(w*(mags-mean_mag)**2)/(np.sum(w)**2-np.sum(w**2))
-            stat = np.sqrt(stat)
+        weighted_mean_mags = np.zeros(num_obs_total)
+        weights = 1./errs**2
 
-        # should it be added in quadrature?
-        if n_filts > 1:
-            stats = np.zeros(n_filts)
-            for i in range(n_filts):
-                f = filters == filter_list[i]
-                stats[i] = weighted_stddev(mags[f], errs[f])
-            stat = np.sqrt(np.sum(stats))
-        return stat
+        for i in range(n_filts):
+            f = filters == filter_list[i]
+            weighted_mean_mag[f] = math_tools.weighted_mean(mags[f], errs[f])
+
+        stat_num = np.sum(weights)*np.sum(weights*(mags-weighted_mean_mag)**2)
+        stat_den = np.sum(weights)**2-np.sum(weights**2)
+        stat = np.sqrt(stat_num/stat_dem)
 
     if statistic == 'MAD':
 
-        deviation = []
+        ######## Calculate median absolute deviation (MAD) #########
+
+        # set up empty array for median magnitude. This array has same length as
+        # mags, but each element will be the median of all magnitudes of the
+        # corresponding filter.
+        median_mags = np.zeros(num_obs_total)
+
         for i in range(n_filts):
             f = filters == filter_list[i]
-            n = float(len(mags[f]))
-            order = np.argsort(mjds[f])
-            m = mags[f][order]
-            e = errs[f][order]
+            # get the median magnitude in this filter, and copy it into an array,
+            # whose corresponding elements in mags are the same filter.
+            median_mags[f] = np.nanmedian(mags[f])
 
-            med = np.median(m)
-            deviation = np.append(deviation, np.abs(m - med))
+        absolute_deviation = np.abs(mags - median_mags)
+        mad = np.nanmedian(absolute_deviation)
 
-        stat = np.median(deviation)
-
-        return stat
-
-    if statistic == 'median':
-
-        stats = np.zeros(n_filts)
-        for i in range(n_filts):
-            f = filters == filter_list[i]
-            n = float(len(mags[f]))
-            median_mag = np.nanmedian(mags[f])
-            frame_residual = np.abs(mags[f] - median_mag)
-            stats[i] = np.mean(frame_residual)
-        stat = np.sum(stats)
-        return stat
+        stat = mad
 
     if statistic == 'IQR':
+        # NOT FINISHED
 
         if n_filts == 1:
             n = float(len(mags))
@@ -295,76 +272,22 @@ def compute_variability_index(filters, mjds, mags, errs,
 
     if statistic == 'RoMS':
 
+        ######## Calculate Robust median statistic  (RoMS) ########
+
         sum = 0
-        n_tot = len(mags)
         for i in range(n_filts):
+            # get all observations in this filter
             f = filters == filter_list[i]
-            n = float(len(mags[f]))
-            sum += np.sum(np.abs(mags[f]-np.median(mags[f]))/errs[f])
-        
-        stat = sum/(n_tot-1)
+            # Use += so we can combine observations from different filters.
+            sum += np.sum(np.abs(mags[f] - np.median(mags[f]))/errs[f])
 
-        return stat
+        # normalize by the total number of observations
+        RoMS = sum/(float(num_obs_total)-1)
 
+        stat = RoMS
 
-def stetson_robust_mean(mags, errs):
+    return stat
 
-    # calculate the simple weighted mean
-    weights = 1/errs**2
-    initial_guess = np.sum(mags*weights)/np.sum(weights)
-    n = len(mags)
-
-    diff = 99
-    old_mean = initial_guess
-    for i in range(1000):
-
-        delta = np.sqrt(n/(n-1))*(mags-old_mean)/errs
-        weight_factor = 1/(1+(np.abs(delta)/2)**2)
-        weights = weights*weight_factor
-
-        new_mean = np.sum(mags*weights)/np.sum(weights)
-
-        diff = np.abs(old_mean - new_mean)
-        if diff < 0.00001:
-            break
-        old_mean = new_mean
-
-    return new_mean
-
-def weighted_mean(mags, errs):
-
-    finite = (~np.isnan(mags)) & (~np.isnan(errs))
-    weights = 1./errs[finite]**2
-    sum_weights = np.sum(weights)
-
-    mean = np.sum(mags[finite]*weights)/sum_weights
-
-    return mean
-
-def weighted_intensity_mean(mags, errs):
-
-    finite = (~np.isnan(mags)) & (~np.isnan(errs))
-    flux = 10**(-mags/2.5)
-    eflux = flux*errs
-    weights = 1./eflux[finite]**2
-    sum_weights = np.sum(weights)
-
-    mean_flux = np.sum(flux[finite]*weights)/sum_weights
-    mean_mag = -2.5*np.log10(mean_flux)
-    return mean_mag
-
-def weighted_stddev(mags, errs):
-
-    finite = (~np.isnan(mags)) & (~np.isnan(errs))
-    weights = 1./errs[finite]**2
-    mean = weighted_intensity_mean(mags, errs)
-    sum_weights = np.sum(weights)
-    top = np.sum(weights*(mags[finite]-mean)**2)
-    num = float(len(mags[finite]))
-    bottom = (num-1)*sum_weights/num
-    stddev = np.sqrt(top/bottom)
-
-    return stddev
 
 # Classification script
 def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False,
@@ -430,7 +353,6 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
     else:
         i = np.argwhere(var_list['id'] == int(star_id))[0]
         plot_next_id = var_list['id'][i][0]
-        #print(star_id, i, plot_next_id)
 
 
     # Print id of star being processed
@@ -456,6 +378,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         return
 
     # Initialize plot
+
     fig = plt.figure(constrained_layout=True, figsize=(12,18))
     gs = GridSpec(6,2, figure=fig)
     ax1 = fig.add_subplot(gs[0,0])
@@ -474,6 +397,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         s=1, alpha=0.5, color='gray')
     ax1.scatter(var_list['mag1'][vari]-var_list['mag2'][vari],
         var_list['mag2'][vari], s=10, color='xkcd:blue')
+    #ax1.set_ylim(29,21)
     ax1.invert_yaxis()
     ax1.set_xlim(-2,4)
     ax1.set_xlabel('{} - {}'.format(band1, band2))
@@ -489,24 +413,13 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
             image, fig=fig, axes=ax2, xall=allstars['x'], yall=allstars['y'],
             xoff=xoff, yoff=yoff, aperture=10, img_limits=img_limits)
 
-    if image == False: 
-       ax2.scatter(allstars['x'], allstars['y'], marker='.', s=1, color='gray', alpha=0.3)
-       ax2.scatter(var_list['x'][i], var_list['y'][i], s=5, color='red')
-       ax2.set_ylabel('x')
-       ax2.set_xlabel('y')
 
     # Plot Band1 PL
     # ignore NV, LPV, and EB stars
     vclean = (var_list['type'] != 'BIN') & (var_list['type'] != 'NV') & \
         (var_list['type'] != 'LPV') & (var_list['type'] != 'EB')
-    
-    can = var_list['type'] == 'XXX'
-    confirmed = (var_list['type'] == 'RRL') | (var_list['type'] == 'CEP') | (var_list['type'] == 'AC')
-
-    ax3.scatter(np.log10(var_list['period'][can]), var_list['mag1'][can],
+    ax3.scatter(np.log10(var_list['period'][vclean]), var_list['mag1'][vclean],
         s=10, color='gray', alpha=0.5)
-    ax3.scatter(np.log10(var_list['period'][confirmed]), var_list['mag1'][confirmed],
-        s=10, color='k', alpha=0.5)
     ax3.invert_yaxis()
     ax3.set_ylabel(band1)
     ax3.set_xlabel('$\log P$ [days]')
@@ -554,7 +467,6 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         ax6.scatter(np.log10(var_list['period'][i]),
             var_list['amp1'][i]/var_list['amp2'][i],
             color='xkcd:red', s=40)
-        ax6.set_ylim(0,5)
         ax6.set_xlabel('$\log P$')
         ax6.set_ylabel('Amp ratio')
     else:
@@ -694,7 +606,7 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
         var_list2['subtype'][i] = new_subtype
 
         np.savetxt(VAR_FILE, var_list2,
-            fmt='%8i %10i %3s %3s %8.3f %8.3f %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
+            fmt='%8i %8i %3s %3s %8.3f %8.3f %7.5f %10.4f %6.3f %5.3f %4.2f %6.3f %5.3f %4.2f')
 
 
     # Save id of star that was processed
