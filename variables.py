@@ -308,8 +308,8 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     # Load photometry file
     dt = np.dtype([('id', int), ('x', float), ('y', float), ('mag1', float),
-        ('mag2', float), ('sharp', float)])
-    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,1,2,3,5,10))
+        ('mag2', float), ('chi', float), ('sharp', float)])
+    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,1,2,3,5,9,10))
     #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
 
     sel = np.abs(allstars['sharp']) < 0.1
