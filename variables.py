@@ -308,8 +308,8 @@ def classify_variable(VAR_FILE, PHOT_FILE, star_id, update=False, plot_lmc=False
 
     # Load photometry file
     dt = np.dtype([('id', int), ('x', float), ('y', float), ('mag1', float),
-        ('mag2', float), ('chi', float), ('sharp', float)])
-    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,1,2,3,5,9,10))
+        ('mag2', float), ('sharp', float)])
+    allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,1,2,3,5,10))
     #allstars = np.loadtxt(PHOT_FILE, dtype=dt, usecols=(0,3,5,8))
 
     sel = np.abs(allstars['sharp']) < 0.1
@@ -714,8 +714,9 @@ def plot_lmc_cep_pl(axes=None, offset=0, period_cutoff=0):
     # classical cepheid lines
     x_fo = np.array([-0.6, 0.8])
     x_fu = np.array([0.0, 2.1])
-    y_fo = -3.328*x_fo + 16.209 - 18.477 + offset
-    y_fu = -2.914*x_fu + 16.672 - 18.477 + offset
+
+    y_fo = -3.328*(x_fo-1.0) + 12.941 - 18.477 + offset
+    y_fu = -2.914*(x_fu-1.0) + 13.757 - 18.477 + offset
     ax1.scatter(x_fo, y_fo, s=1, color='xkcd:sage')
     ax1.scatter(x_fu, y_fu, s=1, color='xkcd:gray')
     ax1.fill_between(x_fo, y_fo-0.23, y_fo+0.23, color='xkcd:sage', alpha=0.4)
