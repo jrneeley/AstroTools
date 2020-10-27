@@ -648,12 +648,12 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
     # classical cepheid lines
     x_fo = np.array([-0.6, 0.8])
     x_fu = np.array([0.0, 2.1])
-    y_fo = -3.328*x_fo + 16.209 - 18.477 + offset
-    y_fu = -2.914*x_fu + 16.672 - 18.477 + offset
+    y_fo = -3.311*(x_fo-1.0) + 12.897 - 18.477 + offset
+    y_fu = -2.912*(x_fu-1.0) + 13.741 - 18.477 + offset
     ax1.scatter(x_fo, y_fo, s=1, color='xkcd:sage')
     ax1.scatter(x_fu, y_fu, s=1, color='xkcd:gray')
-    ax1.fill_between(x_fo, y_fo-0.23, y_fo+0.23, color='xkcd:sage', alpha=0.4)
-    ax1.fill_between(x_fu, y_fu-0.21, y_fu+0.21, color='xkcd:gray', alpha=0.4)
+    ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:sage', alpha=0.4)
+    ax1.fill_between(x_fu, y_fu-0.15, y_fu+0.15, color='xkcd:gray', alpha=0.4)
     # anomalous cepheid lines
     x_fo = np.array([-0.4, 0.07])
     x_fu = np.array([-0.2, 0.37])
@@ -676,7 +676,6 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
     ax2.scatter(cfu['p'], cfu['amp'], s=4, color='xkcd:gray', alpha=0.5)
     ax2.set_xlim(0,3)
 
-    #ax.scatter(np.log10(jill['period']), jill['i_mag'])
     if axes == None:
         ax1.set_xlabel('$\log P$')
         ax1.set_ylabel('I mag')
@@ -715,12 +714,12 @@ def plot_lmc_cep_pl(axes=None, offset=0, period_cutoff=0):
     x_fo = np.array([-0.6, 0.8])
     x_fu = np.array([0.0, 2.1])
 
-    y_fo = -3.328*(x_fo-1.0) + 12.941 - 18.477 + offset
-    y_fu = -2.914*(x_fu-1.0) + 13.757 - 18.477 + offset
+    y_fo = -3.311*(x_fo-1.0) + 12.897 - 18.477 + offset
+    y_fu = -2.912*(x_fu-1.0) + 13.741 - 18.477 + offset
     ax1.scatter(x_fo, y_fo, s=1, color='xkcd:sage')
     ax1.scatter(x_fu, y_fu, s=1, color='xkcd:gray')
-    ax1.fill_between(x_fo, y_fo-0.23, y_fo+0.23, color='xkcd:sage', alpha=0.4)
-    ax1.fill_between(x_fu, y_fu-0.21, y_fu+0.21, color='xkcd:gray', alpha=0.4)
+    ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:sage', alpha=0.4)
+    ax1.fill_between(x_fu, y_fu-0.15, y_fu+0.15, color='xkcd:gray', alpha=0.4)
     # anomalous cepheid lines
     x_fo = np.array([-0.4, 0.07])
     x_fu = np.array([-0.2, 0.37])
@@ -772,12 +771,14 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
 
     x_fo = np.array([-0.7, -0.3])
     x_fu = np.array([-0.6, 0.0])
-    y_fo = -1.946*x_fo + 17.784 - 18.477 + offset
-    y_fu = -1.894*x_fu + 18.169 - 18.477 + offset
+    y_fo = -2.014*x_fo + 17.743 - 18.477 + offset
+    y_fu = -1.889*x_fu + 18.164 - 18.477 + offset
+    fo_mag = -2.014*np.log10(periods_fo) + 17.743
+    fu_mag = -1.889*np.log10(periods_fu) + 18.164
     ax1.scatter(x_fu, y_fu, s=1, color='xkcd:puce')
     ax1.scatter(x_fo, y_fo, s=1, color='xkcd:eggplant')
-    ax1.fill_between(x_fu, y_fu-0.2, y_fu+0.2, color='xkcd:puce', alpha=0.5)
-    ax1.fill_between(x_fo, y_fo-0.2, y_fo+0.2, color='xkcd:eggplant', alpha=0.5)
+    ax1.fill_between(x_fu, y_fu-0.15, y_fu+0.15, color='xkcd:puce', alpha=0.5)
+    ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:eggplant', alpha=0.5)
 
 
     ax2.scatter(rrab['p'], rrab['amp'], s=1, color='xkcd:puce', alpha=0.5)
