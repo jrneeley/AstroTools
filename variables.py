@@ -700,8 +700,8 @@ def plot_lmc_pl(axes=None, offset=0, period_cutoff=0):
     afo = np.loadtxt(acep_dir+'acep1O.dat.txt', usecols=(1,2,3,6), dtype=dt)
     cfu = np.loadtxt(ccep_dir+'cepF.dat.txt', usecols=(1,2,3,6), dtype=dt)
     cfo = np.loadtxt(ccep_dir+'cep1O.dat.txt', usecols=(1,2,3,6), dtype=dt)
-    rrab = np.loadtxt(rrl_dir+'rrab.dat.txt', usecols=(1,2,3,6), dtype=dt)
-    rrc = np.loadtxt(rrl_dir+'rrc.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    rrab = np.loadtxt(rrl_dir+'RRab.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    rrc = np.loadtxt(rrl_dir+'RRc.dat.txt', usecols=(1,2,3,6), dtype=dt)
 
     if axes == None:
         fig1, ax1 = plt.subplots(1,1)
