@@ -199,6 +199,11 @@ def plot_3D_data(x, y, z, xerr=None, yerr=None, zerr=None, plt_axes=False,
     else:
         axes = plt_axes
         fig = plt_fig
+    # if len(plt_axes) > 1:
+    #     axes = plt_axes
+    #     fig = plt_fig
+    # else:
+    #     fig, axes = plt.subplots(2,2, figsize=(5,5))
 
     N = len(x)
     X = np.empty((N, 3))
@@ -206,29 +211,38 @@ def plot_3D_data(x, y, z, xerr=None, yerr=None, zerr=None, plt_axes=False,
     X[:,1] = y
     X[:,2] = z
 
-    S = np.zeros((N, 3, 3))
-    for n in range(N):
-        S[n,0,0] = xerr[n]**2
-        S[n,1,1] = yerr[n]**2
-        S[n,2,2] = zerr[n]**2
+    # if (xerr == None) & (yerr == None) & (zerr == None):
+    #     axes[0,0].scatter(x, y, marker='.', alpha=0.7,
+    #         color=color)
+    #     axes[1,0].scatter(x, z, marker='.', alpha=0.7,
+    #         color=color)
+    #     axes[1,1].scatter(y, z, marker='.', alpha=0.7,
+    #         color=color)
+    if len(xerr) > 0:
 
-    if error_ellipse == True:
-        for xi, yi in product(range(3), range(3)):
+        S = np.zeros((N, 3, 3))
+        for n in range(N):
+            S[n,0,0] = xerr[n]**2
+            S[n,1,1] = yerr[n]**2
+            S[n,2,2] = zerr[n]**2
 
-            if yi <= xi:
-                continue
-            ax = axes[yi-1, xi]
-            plot_error_ellipses(ax, X[:, [xi, yi]],
-                                S[:,
-                                    [[xi, xi], [yi, yi]],
-                                    [[xi, yi], [xi, yi]]])
-    else:
-        axes[0,0].errorbar(x, y, xerr=xerr, yerr=yerr, fmt='.', alpha=0.7,
-            color=color, elinewidth=1.0)
-        axes[1,0].errorbar(x, z, xerr=xerr, yerr=zerr, fmt='.', alpha=0.7,
-            color=color, elinewidth=1.0)
-        axes[1,1].errorbar(y, z, xerr=yerr, yerr=zerr, fmt='.', alpha=0.7,
-            color=color, elinewidth=1.0)
+        if error_ellipse == True:
+            for xi, yi in product(range(3), range(3)):
+
+                if yi <= xi:
+                    continue
+                ax = axes[yi-1, xi]
+                plot_error_ellipses(ax, X[:, [xi, yi]],
+                                    S[:,
+                                        [[xi, xi], [yi, yi]],
+                                        [[xi, yi], [xi, yi]]])
+        else:
+            axes[0,0].errorbar(x, y, xerr=xerr, yerr=yerr, fmt='.', alpha=0.7,
+                color=color, elinewidth=1.0)
+            axes[1,0].errorbar(x, z, xerr=xerr, yerr=zerr, fmt='.', alpha=0.7,
+                color=color, elinewidth=1.0)
+            axes[1,1].errorbar(y, z, xerr=yerr, yerr=zerr, fmt='.', alpha=0.7,
+                color=color, elinewidth=1.0)
 
     # determine plot limits
     if invert_x == True:
@@ -258,12 +272,12 @@ def plot_3D_data(x, y, z, xerr=None, yerr=None, zerr=None, plt_axes=False,
     return fig, axes
 
 
-def plot_region(star, x, y, image, xall=[], yall=[], ext=0,
-    fig=None, axes=None, xoff=0, yoff=0, aperture=None, img_limits=[0,500]):
+def plot_region(x, y, image, xall=[], yall=[], ext=0,
+    axes=None, xoff=0, yoff=0, aperture=None, img_limits=[0,500]):
 
     image_data = fits.getdata(image, ext=ext)
 
-    if fig is None:
+    if axes is None:
         fig, ax = plt.subplots(1,1, figsize=(8,5))
     else:
         ax = axes
@@ -273,9 +287,9 @@ def plot_region(star, x, y, image, xall=[], yall=[], ext=0,
 
     ax.imshow(image_data, cmap='gray', norm=norm1)
 
-    ax.set_aspect('equal')
+    #ax.set_aspect('equal')
     if aperture != None:
-        ap = Circle((x, y), aperture, facecolor=None, edgecolor='red', fill=0)
+        ap = Circle((x-1, y-1), aperture, facecolor=None, edgecolor='red', fill=0)
         ax.add_patch(ap)
     if (len(xall) > 0) & (len(yall) > 0):
         x_all = xall - (xoff+1)
@@ -286,6 +300,6 @@ def plot_region(star, x, y, image, xall=[], yall=[], ext=0,
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
 
-    if fig == None:
+    if axes == None:
         return fig, ax
     #return fig, ax

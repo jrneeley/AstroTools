@@ -136,8 +136,11 @@ def compute_variability_index(filters, mjds, mags, errs,
             # in IDL without using the where() function
             f = filters == filter_list[i]
             # compute the weighted mean in each filter
-            weighted_means[i] = math_tools.stetson_robust_mean(mags[f], errs[f])
             num_obs[i] = float(len(mags[f]))
+            if num_obs[i] > 1:
+                weighted_means[i] = math_tools.stetson_robust_mean(mags[f], errs[f])
+            else:
+                weighted_means[i] = np.nan
             filter_num[f] = i
 
         order = np.argsort(mjds)
@@ -223,7 +226,7 @@ def compute_variability_index(filters, mjds, mags, errs,
 
     if statistic == 'weighted std':
 
-        weighted_mean_mags = np.zeros(num_obs_total)
+        weighted_mean_mag = np.zeros(num_obs_total)
         weights = 1./errs**2
 
         for i in range(n_filts):
@@ -232,7 +235,7 @@ def compute_variability_index(filters, mjds, mags, errs,
 
         stat_num = np.sum(weights)*np.sum(weights*(mags-weighted_mean_mag)**2)
         stat_den = np.sum(weights)**2-np.sum(weights**2)
-        stat = np.sqrt(stat_num/stat_dem)
+        stat = np.sqrt(stat_num/stat_den)
 
     if statistic == 'MAD':
 
@@ -684,11 +687,12 @@ def plot_lmc_cep(axes=None, offset=0, period_cutoff=0):
         plt.show()
 
 
-def plot_lmc_cep_pl(axes=None, offset=0, period_cutoff=0):
+def plot_lmc_pl(axes=None, offset=0, period_cutoff=0):
 
     t2cep_dir = config.ogle_dir+'LMC/t2cep/'
     acep_dir = config.ogle_dir+'LMC/acep/'
     ccep_dir = config.ogle_dir+'LMC/ccep/'
+    rrl_dir = config.ogle_dir+'LMC/rrl/'
 
     dt = np.dtype([('i', float), ('v', float), ('p', float), ('amp', float)])
     t2cep = np.loadtxt(t2cep_dir+'t2cep.dat.txt', usecols=(1,2,3,6), dtype=dt)
@@ -696,44 +700,51 @@ def plot_lmc_cep_pl(axes=None, offset=0, period_cutoff=0):
     afo = np.loadtxt(acep_dir+'acep1O.dat.txt', usecols=(1,2,3,6), dtype=dt)
     cfu = np.loadtxt(ccep_dir+'cepF.dat.txt', usecols=(1,2,3,6), dtype=dt)
     cfo = np.loadtxt(ccep_dir+'cep1O.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    rrab = np.loadtxt(rrl_dir+'rrab.dat.txt', usecols=(1,2,3,6), dtype=dt)
+    rrc = np.loadtxt(rrl_dir+'rrc.dat.txt', usecols=(1,2,3,6), dtype=dt)
 
-    if period_cutoff != 0:
-        t2cep['p'][t2cep['p'] > period_cutoff] = np.nan
-        afo['p'][afo['p'] > period_cutoff] = np.nan
-        afu['p'][afu['p'] > period_cutoff] = np.nan
-        cfo['p'][cfo['p'] > period_cutoff] = np.nan
-        cfu['p'][cfu['p'] > period_cutoff] = np.nan
     if axes == None:
         fig1, ax1 = plt.subplots(1,1)
 
     else:
         ax1 = axes
 
-
     # classical cepheid lines
     x_fo = np.array([-0.6, 0.8])
     x_fu = np.array([0.0, 2.1])
-
+    if period_cutoff != 0:
+        x_fo[1] = np.min([x_fo[1], np.log10(period_cutoff)])
+        x_fu[1] = np.min([x_fu[1], np.log10(period_cutoff)])
     y_fo = -3.311*(x_fo-1.0) + 12.897 - 18.477 + offset
     y_fu = -2.912*(x_fu-1.0) + 13.741 - 18.477 + offset
-    ax1.scatter(x_fo, y_fo, s=1, color='xkcd:sage')
-    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:gray')
     ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:sage', alpha=0.4)
     ax1.fill_between(x_fu, y_fu-0.15, y_fu+0.15, color='xkcd:gray', alpha=0.4)
     # anomalous cepheid lines
     x_fo = np.array([-0.4, 0.07])
     x_fu = np.array([-0.2, 0.37])
+    if period_cutoff != 0:
+        x_fo[1] = np.min([x_fo[1], np.log10(period_cutoff)])
+        x_fu[1] = np.min([x_fu[1], np.log10(period_cutoff)])
     y_fo = -3.302*x_fo + 16.656 - 18.477 + offset
     y_fu = -2.962*x_fu + 17.368 - 18.477 + offset
-    ax1.scatter(x_fo, y_fo, s=1, color='xkcd:pale purple')
-    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:rose')
     ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:pale purple', alpha=0.4)
     ax1.fill_between(x_fu, y_fu-0.23, y_fu+0.23, color='xkcd:rose', alpha=0.4)
     # type 2 cepheid line
     x_fu = np.array([-0.09, 1.8])
+    if period_cutoff != 0:
+        x_fu[1] = np.min([x_fu[1], np.log10(period_cutoff)])
     y_fu = -2.033*x_fu + 18.015 - 18.477 + offset
-    ax1.scatter(x_fu, y_fu, s=1, color='xkcd:steel blue')
     ax1.fill_between(x_fu, y_fu-0.4, y_fu+0.4, color='xkcd:steel blue', alpha=0.4)
+    # RRL lines
+    x_fo = np.array([-0.7, -0.3])
+    x_fu = np.array([-0.6, 0.0])
+    if period_cutoff != 0:
+        x_fo[1] = np.min([x_fo[1], np.log10(period_cutoff)])
+        x_fu[1] = np.min([x_fu[1], np.log10(period_cutoff)])
+    y_fo = -2.014*x_fo + 17.743 - 18.477 + offset
+    y_fu = -1.889*x_fu + 18.164 - 18.477 + offset
+    ax1.fill_between(x_fu, y_fu-0.15, y_fu+0.15, color='xkcd:puce', alpha=0.5)
+    ax1.fill_between(x_fo, y_fo-0.16, y_fo+0.16, color='xkcd:eggplant', alpha=0.5)
 
     if axes == None:
         ax1.set_xlabel('$\log P$')
@@ -773,8 +784,7 @@ def plot_lmc_rrl(axes=None, offset=0, rrd_fu=False):
     x_fu = np.array([-0.6, 0.0])
     y_fo = -2.014*x_fo + 17.743 - 18.477 + offset
     y_fu = -1.889*x_fu + 18.164 - 18.477 + offset
-    fo_mag = -2.014*np.log10(periods_fo) + 17.743
-    fu_mag = -1.889*np.log10(periods_fu) + 18.164
+
     ax1.scatter(x_fu, y_fu, s=1, color='xkcd:puce')
     ax1.scatter(x_fo, y_fo, s=1, color='xkcd:eggplant')
     ax1.fill_between(x_fu, y_fu-0.15, y_fu+0.15, color='xkcd:puce', alpha=0.5)
