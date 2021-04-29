@@ -8,7 +8,7 @@ from matplotlib.patches import Circle
 
 def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     ylabel='mag', cbar_max=None, cbar_min=None, cbar_scale='linear', \
-    cmap=plt.cm.viridis, plt_axes=False, save_as='None', rasterized=False):
+    contours=False, cmap=plt.cm.viridis, plt_axes=False, save_as='None', rasterized=False):
     """
     Plot color magnitude diagram as a 2D density plot.
 
@@ -39,9 +39,10 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     Z, xedges, yedges = np.histogram2d(color,mag,bins=(500,1000), \
         range=[xlim, ylim])
     Z[Z == 0] = np.nan
-
-    Y, X = np.meshgrid(yedges, xedges)
-
+    xcenters = (xedges[:-1] + xedges[1:])/2
+    ycenters = (yedges[:-1] + yedges[1:])/2
+    #Y, X = np.meshgrid(yedges, xedges)
+    Y, X = np.meshgrid(ycenters, xcenters)
     if plt_axes == False:
         fig = plt.figure(figsize=(7, 7))
         ax = fig.add_subplot(111)
@@ -66,6 +67,12 @@ def plot_cmd(color, mag, xlim=[-1,4], ylim=[20,30], xlabel='color', \
     else:
         print('Invalid color scale. Choose from: linear, log, arcsinh, sqrt')
         sys.exit()
+
+    if contours==True:
+        # Draw density contours over the colors
+        levels = np.linspace(0, Z_new.max(), 7)[2:]
+        ax.contour(X, Y, Z_new, colors='white')#, linewidths=1,
+            #extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
     # Flip y axis for CMD
     #ax.set_ylim(ylim[1],ylim[0])
     #ax.set_xlim(xlim)
